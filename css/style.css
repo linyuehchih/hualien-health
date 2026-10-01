@@ -184,16 +184,14 @@ textarea { resize: vertical; }
 .feature-list li { padding: 4px 0 4px 26px; position: relative; font-size: 0.95rem; }
 .feature-list li::before { content: ""; position: absolute; left: 4px; top: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--primary); }
 
-.btn-google, .btn-line { width: 100%; margin-bottom: 12px; font-weight: 600; }
-.gsi-btn { display: flex; justify-content: center; min-height: 44px; margin-bottom: 12px; }
+.btn-line { width: 100%; margin-bottom: 12px; font-weight: 600; }
 
 /* 跟後台溝通時，最上方出現一條跑動的細線 */
 .busy-bar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 50; pointer-events: none; opacity: 0; transition: opacity 0.2s; overflow: hidden; }
 .busy-bar::before { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; background: var(--sea); animation: busy 1s ease-in-out infinite; }
 .is-busy .busy-bar { opacity: 1; }
 @keyframes busy { from { left: -40%; } to { left: 100%; } }
-.btn-google svg, .btn-line svg { width: 24px; height: 24px; flex: none; }
-.btn-google { background: #fff; color: #1f1f1f; border-color: #c9d1cd; }
+.btn-line svg { width: 24px; height: 24px; flex: none; }
 .btn-line { background: #06c755; border-color: #06c755; color: #fff; }
 
 .site-foot { margin-top: 28px; text-align: center; font-size: 0.8rem; color: var(--muted); display: grid; gap: 4px; }

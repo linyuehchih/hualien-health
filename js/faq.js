@@ -148,8 +148,8 @@ window.HH_FAQ = [
   {
     cat: '網站怎麼用',
     q: '換手機或換電腦，資料還在嗎？',
-    a: '在。資料存在雲端，只要<strong>用同一種方式登入</strong>（原本用 Google 就繼續用 Google，原本用 LINE 就繼續用 LINE），換裝置也看得到。<br>如果換了登入方式，會被當成另一個新帳號。',
-    k: '換手機 換電腦 登入 Google LINE 帳號'
+    a: '在。資料存在雲端，只要用<strong>同一個 LINE 帳號</strong>登入，換手機、換電腦都看得到。<br>用電腦打開網站時，可以用手機 LINE 掃描畫面上的 QR Code 登入。',
+    k: '換手機 換電腦 登入 LINE 帳號 QR Code 掃描'
   },
   {
     cat: '網站怎麼用',

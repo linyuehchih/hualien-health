@@ -162,9 +162,8 @@
       toast((e.reason && e.reason.message) || '發生錯誤，請稍後再試');
     });
 
-    // LINE 登入回來時網址會帶登入代碼：先記下來並立刻從網址列清掉，再載入其他東西
+    // LINE 登入回來時網址會帶登入代碼：先記下來並立刻從網址列清掉
     var lineCallback = captureLineCallback();
-    showInAppHint();
 
     if (!api.isDemo) {
       api.onAuthLost = function (msg) {
@@ -172,7 +171,6 @@
         showView('login');
         toast(msg);
       };
-      if (!isLineInApp()) setupGoogleButton();
     }
 
     if (lineCallback && !api.isDemo) {
@@ -194,20 +192,11 @@
   // ---------- LINE 登入（正式模式） ----------
   var LINE_AUTH_KEY = 'hh_line_auth';
 
-  function isLineInApp() { return /\bLine\//i.test(navigator.userAgent); }
-
   // 從 LINE 授權頁按「上一頁」回來時，把按鈕恢復成可以按
   window.addEventListener('pageshow', function () {
     var b = document.querySelector('[data-login="line"]');
     if (b) b.disabled = false;
   });
-
-  // 在 LINE 內建瀏覽器開啟時：Google 會擋登入，所以藏起 Google 按鈕，提示用 LINE 登入
-  function showInAppHint() {
-    if (!isLineInApp()) return;
-    $('#inapp-hint').hidden = false;
-    $('#demo-google').hidden = true;
-  }
 
   // 登入結束後要回到的網址，必須和 LINE 後台設定的 Callback URL 完全一樣
   function lineRedirectUri() { return location.origin + location.pathname.replace(/index\.html$/, ''); }
@@ -279,54 +268,7 @@
     }
   }
 
-  // ---------- Google 官方登入按鈕（正式模式） ----------
-  function setupGoogleButton() {
-    var cfg = window.HH_CONFIG || {};
-    // 在本機 http 測試時，Google 需要這個設定才能正常登入
-    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-      var meta = document.createElement('meta');
-      meta.name = 'referrer';
-      meta.content = 'no-referrer-when-downgrade';
-      document.head.appendChild(meta);
-    }
-    var s = document.createElement('script');
-    s.src = 'https://accounts.google.com/gsi/client';
-    s.async = true;
-    s.onload = function () {
-      google.accounts.id.initialize({
-        client_id: cfg.googleClientId,
-        callback: onGoogleCredential,
-        ux_mode: 'popup'
-      });
-      var box = $('#gsi-btn');
-      box.hidden = false;
-      $('#demo-google').hidden = true;
-      google.accounts.id.renderButton(box, {
-        type: 'standard', theme: 'outline', size: 'large', text: 'signin_with',
-        shape: 'rectangular', logo_alignment: 'center', locale: 'zh-TW',
-        width: Math.min(400, box.clientWidth || 320)
-      });
-    };
-    s.onerror = function () { toast('Google 登入載入失敗，請檢查網路後重新整理'); };
-    document.head.appendChild(s);
-  }
-
-  async function onGoogleCredential(resp) {
-    try {
-      var res = await api.loginGoogle(resp.credential);
-      st.provider = 'google';
-      if (res.needsProfile) {
-        showView('onboard');
-      } else {
-        var s = await api.getSession();
-        enterApp(s.profile);
-      }
-    } catch (e) {
-      toast(e.message);
-    }
-  }
-
-  // ---------- 登入 ----------
+  // ---------- 登入（只用 LINE；示範模式直接進入） ----------
   function bindLogin() {
     $$('[data-login]').forEach(function (b) {
       b.onclick = async function () {
@@ -979,7 +921,7 @@
     f.heightCm.value = p.heightCm;
     f.targetKg.value = p.targetKg;
     $('#profile-error').textContent = '';
-    $('#login-with').textContent = '目前用 ' + (st.provider === 'line' ? 'LINE' : 'Google') + ' 登入';
+    $('#login-with').textContent = '目前用 LINE 登入';
   }
 
   function csvCell(v) {

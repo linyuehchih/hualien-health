@@ -88,10 +88,6 @@
       }
     },
 
-    loginGoogle: async function (idToken) {
-      return afterLogin(await call('loginGoogle', { idToken: idToken }), 'google');
-    },
-
     loginLine: async function (p) {
       return afterLogin(await call('loginLine', p), 'line');
     },
