@@ -173,7 +173,8 @@
       return true;
     },
 
-    getLeaderboard: function () { return call('leaderboard'); },
+    // scope：all（全部）／village（本里）／site（本據點）
+    getLeaderboard: function (scope) { return call('leaderboard', { scope: scope || 'all' }); },
 
     deleteAccount: async function () {
       await call('deleteAccount');

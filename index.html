@@ -83,6 +83,7 @@
             <input type="number" name="targetKg" inputmode="decimal" step="0.1" min="30" max="200" placeholder="例如 60">
           </label>
         </div>
+        <div class="site-picker"></div>
         <label class="check">
           <input type="checkbox" name="agree">
           <span>我已閱讀並同意<a href="privacy.html" target="_blank">隱私權政策</a></span>
@@ -219,6 +220,11 @@
 
       <!-- 競賽排行 -->
       <section class="tab" id="tab-rank" hidden>
+        <div class="seg seg-3" id="rank-scope">
+          <label><input type="radio" name="scope" value="all" checked><span>全部</span></label>
+          <label><input type="radio" name="scope" value="village"><span>本里</span></label>
+          <label><input type="radio" name="scope" value="site"><span>本據點</span></label>
+        </div>
         <div class="card">
           <h2 id="season-label"></h2>
           <p class="rank-note" id="season-note"></p>
@@ -227,7 +233,8 @@
         </div>
         <div class="card me-card" id="my-status"></div>
         <div class="card">
-          <h2>排行榜</h2>
+          <h2 id="board-title">排行榜</h2>
+          <p class="sub" id="board-group" hidden></p>
           <p class="hint">只顯示綽號和分數，不會顯示任何人的體重</p>
           <ol class="board" id="board"></ol>
         </div>
@@ -252,6 +259,7 @@
             <label class="field"><span>身高（公分）</span><input type="number" name="heightCm" inputmode="decimal" step="0.1"></label>
             <label class="field"><span>目標體重（公斤）</span><input type="number" name="targetKg" inputmode="decimal" step="0.1"></label>
           </div>
+          <div class="site-picker"></div>
           <p class="form-error" id="profile-error" role="alert"></p>
           <button type="submit" class="btn primary block">儲存</button>
         </form>
@@ -338,6 +346,7 @@
 
   <script src="js/config.js"></script>
   <script src="js/faq.js"></script>
+  <script src="js/sites.js"></script>
   <script src="js/scoring.js"></script>
   <script src="js/photos.js"></script>
   <script src="js/mock-api.js"></script>

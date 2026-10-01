@@ -9,7 +9,7 @@
   var MEAL_ORDER = ['早餐', '午餐', '晚餐', '點心'];
   var WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
-  var st = { provider: null, profile: null, body: [], meals: [], water: [], bowel: [], tab: 'today' };
+  var st = { provider: null, profile: null, body: [], meals: [], water: [], bowel: [], tab: 'today', rankScope: 'all' };
   var waterQueue = Promise.resolve(); // 飲水連按時依序存檔，不會漏算
   var WATER_WARN_ML = 6000;
   var pending = [];   // 還沒送出的照片 [{blob, url}]
@@ -152,6 +152,7 @@
     bindOnboard();
     bindToday();
     bindTrend();
+    bindRank();
     bindAccount();
     $$('.tabbar button').forEach(function (b) {
       b.onclick = function () { switchTab(b.dataset.tab); };
@@ -289,18 +290,79 @@
     });
   }
 
+  // ---------- 里別 → 據點類型 → 承辦單位（清單在 js/sites.js）----------
+  var SITES = window.HH_SITES || { villages: [], types: [], sites: [] };
+  function siteById(id) { return SITES.sites.find(function (s) { return s.id === id; }) || null; }
+  function opt(value, text) { return '<option value="' + esc(value) + '">' + esc(text) + '</option>'; }
+
+  function buildSitePicker(form) {
+    form.querySelector('.site-picker').innerHTML =
+      '<label class="field"><span>住在哪一里</span><select name="village">' + opt('', '請選擇') +
+        SITES.villages.map(function (v) { return opt(v, v); }).join('') + '</select></label>' +
+      '<div class="site-more" hidden>' +
+        '<p class="hint">有參加社區據點的話，再選據點類型和承辦單位；居家的長輩不用選</p>' +
+        '<label class="field"><span>據點類型</span><select name="siteType"></select></label>' +
+        '<label class="field"><span>承辦單位</span><select name="siteId"></select></label>' +
+        '<p class="sub site-full"></p>' +
+      '</div>';
+    form.village.onchange = function () { fillSiteTypes(form); };
+    form.siteType.onchange = function () { fillSiteUnits(form); };
+    form.siteId.onchange = function () { showSiteFull(form); };
+  }
+
+  // 承辦單位名稱很長，選單裡會被截斷，在下面顯示完整名稱
+  function showSiteFull(form) {
+    var s = siteById(form.siteId.value);
+    var el = form.querySelector('.site-full');
+    el.textContent = s ? '已選：' + s.name : '';
+    el.hidden = !s;
+  }
+
+  function fillSiteTypes(form) {
+    var inVillage = SITES.sites.filter(function (s) { return s.village === form.village.value; });
+    var types = SITES.types.filter(function (t) { return inVillage.some(function (s) { return s.type === t; }); });
+    form.querySelector('.site-more').hidden = !types.length;
+    form.siteType.innerHTML = opt('', '沒有參加據點（居家）') + types.map(function (t) { return opt(t, t); }).join('');
+    fillSiteUnits(form);
+  }
+
+  function fillSiteUnits(form) {
+    var type = form.siteType.value;
+    var list = SITES.sites.filter(function (s) { return s.village === form.village.value && s.type === type; });
+    form.siteId.disabled = !type;
+    form.siteId.innerHTML = !type ? opt('', '—')
+      : (list.length > 1 ? opt('', '請選擇') : '') + list.map(function (s) { return opt(s.id, s.name); }).join('');
+    showSiteFull(form);
+  }
+
+  function setSitePicker(form, village, siteId) {
+    form.village.value = village || '';
+    fillSiteTypes(form);
+    var s = siteById(siteId);
+    if (s && s.village === form.village.value) {
+      form.siteType.value = s.type;
+      fillSiteUnits(form);
+      form.siteId.value = s.id;
+      showSiteFull(form);
+    }
+  }
+
   // ---------- 基本資料（第一次登入、我的帳號共用檢查）----------
   function readProfileForm(form, errEl, needAgree) {
     var p = {
       nickname: form.nickname.value.trim(),
       sex: radioValue(form, 'sex'),
       heightCm: num(form.heightCm.value),
-      targetKg: num(form.targetKg.value)
+      targetKg: num(form.targetKg.value),
+      village: form.village.value,
+      siteId: form.siteType.value ? form.siteId.value : ''
     };
     var err = '';
     if (!p.sex) err = '請選擇性別';
     else if (p.heightCm == null || p.heightCm < 100 || p.heightCm > 230) err = '請填寫身高（100～230 公分）';
     else if (p.targetKg == null || p.targetKg < 30 || p.targetKg > 200) err = '請填寫目標體重（30～200 公斤）';
+    else if (!p.village) err = '請選擇住在哪一里';
+    else if (form.siteType.value && !p.siteId) err = '請選擇承辦單位；沒有參加據點的話，類型選「沒有參加據點」';
     else if (needAgree && !form.agree.checked) err = '請先勾選同意隱私權政策';
     errEl.textContent = err;
     return err ? null : p;
@@ -308,6 +370,8 @@
 
   function bindOnboard() {
     var form = $('#onboard-form');
+    buildSitePicker(form);
+    setSitePicker(form, '', '');
     form.onsubmit = async function (e) {
       e.preventDefault();
       var p = readProfileForm(form, $('#onboard-error'), true);
@@ -872,18 +936,45 @@
   }
 
   // ---------- 競賽排行 ----------
+  // 排行範圍：全部／本里／本據點（只能看自己的里和據點）
+  var rankSeq = 0;
+  function bindRank() {
+    $('#rank-scope').onchange = function (e) {
+      st.rankScope = e.target.value;
+      renderRank();
+    };
+  }
+
+  function setupRankScope() {
+    var p = st.profile || {};
+    var box = $('#rank-scope');
+    box.querySelector('input[value="village"] + span').textContent = p.village || '本里';
+    box.querySelector('input[value="village"]').parentNode.hidden = !p.village;
+    box.querySelector('input[value="site"]').parentNode.hidden = !p.siteId;
+    if ((st.rankScope === 'village' && !p.village) || (st.rankScope === 'site' && !p.siteId)) st.rankScope = 'all';
+    setRadio(box, 'scope', st.rankScope);
+  }
+
   async function renderRank() {
+    setupRankScope();
+    var seq = ++rankSeq;
     $('#board').innerHTML = '<li class="hint">讀取中…</li>';
-    var lb = await api.getLeaderboard();
+    var lb = await api.getLeaderboard(st.rankScope);
+    if (seq !== rankSeq) return; // 已經切到別的範圍了
+    var group = lb.group || { scope: 'all', label: '全部' };
+    var inGroup = group.scope === 'all' ? '' : '（' + (group.scope === 'village' ? group.label : '本據點') + '）';
     $('#season-label').textContent = lb.season.label;
     $('#season-note').textContent = lb.note || '';
     $('#season-note').hidden = !lb.note;
+    $('#board-title').textContent = '排行榜' + (group.scope === 'all' ? '（全部）' : inGroup);
+    $('#board-group').textContent = group.scope === 'site' ? group.label : '';
+    $('#board-group').hidden = group.scope !== 'site';
 
     var r = lb.me.result;
     var me;
     if (r.qualified) {
       me = '<p class="sub">我的成績</p>' +
-        '<p class="me-rank">第 <strong>' + lb.me.rank + '</strong> 名 · ' + r.score.toFixed(2) + ' 分</p>' +
+        '<p class="me-rank">' + inGroup + '第 <strong>' + lb.me.rank + '</strong> 名 · ' + r.score.toFixed(2) + ' 分</p>' +
         '<p>體脂 ' + r.first.bodyFatPct + '% → ' + r.last.bodyFatPct + '%（減少比例 ' + r.fatPct.toFixed(2) + '%）</p>' +
         '<p>體重 ' + r.first.weightKg + ' → ' + r.last.weightKg + ' 公斤（減少比例 ' + r.weightPct.toFixed(2) + '%）</p>' +
         '<p class="hint">這一欄只有你自己看得到</p>';
@@ -900,7 +991,7 @@
     $('#my-status').innerHTML = me;
 
     if (!lb.entries.length) {
-      $('#board').innerHTML = '<li class="hint">這一季還沒有人上榜</li>';
+      $('#board').innerHTML = '<li class="hint">這一季' + (group.scope === 'village' ? '本里' : group.scope === 'site' ? '本據點' : '') + '還沒有人上榜</li>';
       return;
     }
     $('#board').innerHTML = lb.entries.map(function (e) {
@@ -919,7 +1010,8 @@
     setRadio(f, 'sex', p.sex);
     f.heightCm.value = p.heightCm;
     f.targetKg.value = p.targetKg;
-    $('#profile-error').textContent = '';
+    setSitePicker(f, p.village, p.siteId);
+    $('#profile-error').textContent = p.village ? '' : '請補選住在哪一里，才能看本里的排行';
     $('#login-with').textContent = '目前用 LINE 登入';
   }
 
@@ -943,6 +1035,7 @@
 
   function bindAccount() {
     var f = $('#profile-form');
+    buildSitePicker(f);
     f.onsubmit = async function (e) {
       e.preventDefault();
       var p = readProfileForm(f, $('#profile-error'), false);

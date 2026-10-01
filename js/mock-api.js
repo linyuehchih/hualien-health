@@ -190,6 +190,8 @@
         sex: p.sex,
         heightCm: p.heightCm,
         targetKg: p.targetKg,
+        village: p.village || '',
+        siteId: p.siteId || '',
         agreedAt: (s.profile && s.profile.agreedAt) || Date.now()
       };
       if (isNew) { s.body = seedBody(); s.meals = seedMeals(); s.water = seedWater(); s.bowel = seedBowel(); }
@@ -298,8 +300,9 @@
       return delay(true);
     },
 
-    getLeaderboard: function () {
+    getLeaderboard: function (scope) {
       var s = load();
+      var prof = s.profile || {};
       var today = HH.today();
       var season = HH.seasonOf(today);
       var note = '';
@@ -308,7 +311,15 @@
         season = HH.prevSeason(season);
         note = '本季剛開始，示範畫面先用上一季的資料展示';
       }
-      var entries = othersFor(season, today).map(function (o) {
+      // 示範用：每 3 位其他會員裡，1 位跟你同據點、1 位跟你同里
+      var others = othersFor(season, today).filter(function (o, i) {
+        if (scope === 'site') return i % 3 === 0;
+        if (scope === 'village') return i % 3 !== 2;
+        return true;
+      });
+      var site = (window.HH_SITES ? window.HH_SITES.sites : []).find(function (x) { return x.id === prof.siteId; });
+      var group = { scope: scope || 'all', label: scope === 'village' ? prof.village : scope === 'site' ? (site ? site.name : '') : '全部' };
+      var entries = others.map(function (o) {
         return { id: o.id, nickname: o.nickname, hidden: o.hidden, isMe: false, result: HH.scoreMember(o.records, season, today) };
       });
       var mine = HH.scoreMember(s.body, season, today);
@@ -317,6 +328,7 @@
       var meRow = ranked.find(function (e) { return e.isMe; });
       return delay({
         season: season,
+        group: group,
         note: note,
         entries: ranked.map(function (e) { return { rank: e.rank, nickname: e.nickname, score: e.result.score, isMe: e.isMe }; }),
         me: { result: mine, rank: meRow ? meRow.rank : null }
