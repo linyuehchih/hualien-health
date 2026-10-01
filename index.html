@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1f7a5c">
+  <!-- 測試期間不讓搜尋引擎收錄；Step 8 正式上線時拿掉 -->
+  <meta name="robots" content="noindex, nofollow">
+  <title>花蓮共好健康生活</title>
+  <!-- 加到手機主畫面時用的名稱和圖示 -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-title" content="共好健康">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="busy-bar" aria-hidden="true"></div>
+
+  <div id="demo-banner" class="demo-banner" hidden>
+    示範模式：畫面上都是假資料，還沒連接後台
+    <button type="button" id="demo-reset" class="link-btn">重設示範</button>
+  </div>
+
+  <!-- 登入 -->
+  <section id="view-login" class="view" hidden>
+    <div class="login-wrap">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64"><path d="M4 46 L20 24 L30 36 L40 18 L60 46 Z" class="mark-mountain"/><path d="M4 50 Q18 44 32 50 T60 50 V56 H4 Z" class="mark-sea"/></svg>
+        </div>
+        <h1>花蓮共好健康生活</h1>
+        <p class="tagline">記錄每一天，大家一起更健康</p>
+      </div>
+
+      <ul class="feature-list">
+        <li>每天記錄體重、體脂、肌肉量、內臟脂肪</li>
+        <li>寫下三餐吃了什麼，記錄喝水和排便</li>
+        <li>看 BMI、變化曲線、離目標還差多少</li>
+        <li>用綽號參加每季排行榜</li>
+      </ul>
+
+      <!-- 在 LINE 裡打開網站時顯示：Google 會擋 LINE 內建瀏覽器登入 -->
+      <div class="tip inapp-hint" id="inapp-hint" role="note" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>
+        <div>
+          <p class="tip-title">你正在 LINE 裡打開網站</p>
+          <p>請直接按下方「用 LINE 登入」。想用 Google 登入的話，請點右上角「⋮」，選「在預設瀏覽器中開啟」。</p>
+        </div>
+      </div>
+
+      <!-- 正式模式：Google 官方登入按鈕會畫在這裡，下面的示範按鈕會隱藏 -->
+      <div id="gsi-btn" class="gsi-btn" hidden></div>
+      <button type="button" class="btn btn-google" data-login="google" id="demo-google">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg>
+        用 Google 登入
+      </button>
+      <button type="button" class="btn btn-line" data-login="line">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#fff" d="M24 6C12.4 6 3 13.6 3 23c0 8.4 7.5 15.5 17.6 16.8.7.1 1.6.5 1.8 1 .2.5.1 1.2.1 1.7l-.3 1.8c-.1.5-.4 2.1 1.8 1.1 2.3-1 12.3-7.2 16.8-12.4 3.1-3.4 4.6-6.8 4.6-10.1C45 13.6 35.6 6 24 6z"/></svg>
+        用 LINE 登入
+      </button>
+      <p class="hint center">請固定用同一種方式登入，用不同方式會變成兩個帳號</p>
+
+      <footer class="site-foot">
+        <button type="button" class="link-btn" data-open-faq>常見問題</button>
+        <a href="privacy.html">隱私權政策</a>
+        <span>本網站僅供記錄參考，不提供醫療建議</span>
+      </footer>
+    </div>
+  </section>
+
+  <!-- 第一次登入：基本資料 -->
+  <section id="view-onboard" class="view" hidden>
+    <div class="page">
+      <h1 class="page-title">歡迎加入！先填幾個基本資料</h1>
+      <form id="onboard-form" class="card" novalidate>
+        <label class="field">
+          <span>綽號（排行榜上顯示的名字）</span>
+          <input type="text" name="nickname" maxlength="12" placeholder="可以留空，會自動給你一個編號">
+        </label>
+        <fieldset class="field">
+          <legend>性別（用來判斷體脂是否偏高）</legend>
+          <div class="seg">
+            <label><input type="radio" name="sex" value="M"><span>男</span></label>
+            <label><input type="radio" name="sex" value="F"><span>女</span></label>
+          </div>
+        </fieldset>
+        <div class="grid-2">
+          <label class="field">
+            <span>身高（公分）</span>
+            <input type="number" name="heightCm" inputmode="decimal" step="0.1" min="100" max="230" placeholder="例如 165">
+          </label>
+          <label class="field">
+            <span>目標體重（公斤）</span>
+            <input type="number" name="targetKg" inputmode="decimal" step="0.1" min="30" max="200" placeholder="例如 60">
+          </label>
+        </div>
+        <label class="check">
+          <input type="checkbox" name="agree">
+          <span>我已閱讀並同意<a href="privacy.html" target="_blank">隱私權政策</a></span>
+        </label>
+        <p class="form-error" id="onboard-error" role="alert"></p>
+        <button type="submit" class="btn primary block">開始使用</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- 主畫面 -->
+  <div id="view-app" class="view" hidden>
+    <header class="topbar">
+      <span class="topbar-title">花蓮共好健康生活</span>
+      <span class="topbar-right">
+        <span class="topbar-hello" id="hello"></span>
+        <button type="button" class="help-btn" data-open-faq aria-label="常見問題">問</button>
+      </span>
+    </header>
+
+    <main class="page">
+
+      <!-- 今天記錄 -->
+      <section class="tab" id="tab-today">
+        <div class="card">
+          <label class="field">
+            <span>日期</span>
+            <input type="date" id="rec-date">
+          </label>
+          <p class="hint">可以補記最近 3 天，更早的紀錄會鎖住不能改</p>
+        </div>
+
+        <div class="card">
+          <h2>身體數據</h2>
+          <div class="tip" role="note">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>
+            <div>
+              <p class="tip-title">量體重建議在清晨如廁後</p>
+              <p>起床上完廁所、吃早餐前量，每天固定這個時間、用同一台體重計，數字才比得準。量體脂要赤腳站上去。</p>
+            </div>
+          </div>
+          <div class="grid-2">
+            <label class="field"><span>體重（公斤）</span><input type="number" id="in-weight" inputmode="decimal" step="0.1" placeholder="—"></label>
+            <label class="field"><span>體脂（%）</span><input type="number" id="in-fat" inputmode="decimal" step="0.1" placeholder="—"></label>
+            <label class="field"><span>肌肉量（公斤）</span><input type="number" id="in-muscle" inputmode="decimal" step="0.1" placeholder="—"></label>
+            <label class="field"><span>內臟脂肪（等級）</span><input type="number" id="in-visceral" inputmode="numeric" step="1" placeholder="—"></label>
+          </div>
+          <p class="hint">體重計沒有的項目可以空著</p>
+          <p class="status" id="body-status"></p>
+          <button type="button" id="body-save" class="btn primary block">儲存身體數據</button>
+        </div>
+
+        <div class="card">
+          <h2>飲食</h2>
+          <div class="seg seg-4" id="meal-seg">
+            <label><input type="radio" name="meal" value="早餐" checked><span>早餐</span></label>
+            <label><input type="radio" name="meal" value="午餐"><span>午餐</span></label>
+            <label><input type="radio" name="meal" value="晚餐"><span>晚餐</span></label>
+            <label><input type="radio" name="meal" value="點心"><span>點心</span></label>
+          </div>
+          <label class="field">
+            <span class="sr-only">吃了什麼</span>
+            <textarea id="meal-text" rows="2" maxlength="200" placeholder="例如：地瓜稀飯、燙青菜、滷蛋"></textarea>
+          </label>
+          <div class="photo-pick">
+            <label class="btn" for="meal-photo">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+              拍照／選照片
+            </label>
+            <input type="file" id="meal-photo" accept="image/*" multiple hidden>
+            <span class="hint" id="photo-hint">最多 3 張</span>
+          </div>
+          <div class="thumbs" id="photo-preview"></div>
+          <button type="button" id="meal-add" class="btn primary block">新增這一餐</button>
+          <div id="day-meals" class="day-meals"></div>
+        </div>
+
+        <div class="card">
+          <h2>飲水</h2>
+          <p class="water-line"><span class="sub" id="water-label">今天已喝</span> <span class="water-total" id="water-total">0</span> <span class="sub">c.c.</span></p>
+          <div class="water-bar" id="water-bar" hidden><span id="water-bar-fill"></span></div>
+          <p class="hint" id="water-suggest"></p>
+          <div class="water-btns" id="water-btns">
+            <button type="button" class="btn" data-water="100">+100</button>
+            <button type="button" class="btn" data-water="200">+200</button>
+            <button type="button" class="btn" data-water="300">+300</button>
+            <button type="button" class="btn" data-water="500">+500</button>
+          </div>
+          <details class="water-edit">
+            <summary>按錯了？直接修改總數</summary>
+            <div class="water-edit-row">
+              <input type="number" id="water-input" inputmode="numeric" step="50" min="0" aria-label="飲水總數（c.c.）">
+              <button type="button" class="btn primary" id="water-save">儲存</button>
+            </div>
+          </details>
+        </div>
+
+        <div class="card">
+          <h2 class="h2-row">排便 <span class="count-badge" id="bowel-count">今天 0 次</span></h2>
+          <p class="sub">量</p>
+          <div class="seg" id="bowel-amount">
+            <label><input type="radio" name="bowel-amount" value="多"><span>多</span></label>
+            <label><input type="radio" name="bowel-amount" value="中"><span>中</span></label>
+            <label><input type="radio" name="bowel-amount" value="少"><span>少</span></label>
+          </div>
+          <p class="sub">型態</p>
+          <div class="seg" id="bowel-form">
+            <label><input type="radio" name="bowel-form" value="硬"><span>硬</span></label>
+            <label><input type="radio" name="bowel-form" value="軟"><span>軟</span></label>
+            <label><input type="radio" name="bowel-form" value="未成形"><span>未成形</span></label>
+          </div>
+          <button type="button" id="bowel-add" class="btn primary block">新增一次</button>
+          <div id="day-bowel" class="day-meals"></div>
+        </div>
+      </section>
+
+      <!-- 我的變化 -->
+      <section class="tab" id="tab-trend" hidden>
+        <div class="card" id="bmi-card"></div>
+        <div class="seg seg-4 range-seg" id="range-seg">
+          <label><input type="radio" name="range" value="7"><span>7 天</span></label>
+          <label><input type="radio" name="range" value="30" checked><span>30 天</span></label>
+          <label><input type="radio" name="range" value="90"><span>90 天</span></label>
+          <label><input type="radio" name="range" value="all"><span>全部</span></label>
+        </div>
+        <div id="charts"></div>
+      </section>
+
+      <!-- 每日紀錄（依日期分：飲水、排便、飲食） -->
+      <section class="tab" id="tab-diary" hidden>
+        <div id="diary"></div>
+      </section>
+
+      <!-- 競賽排行 -->
+      <section class="tab" id="tab-rank" hidden>
+        <div class="card">
+          <h2 id="season-label"></h2>
+          <p class="rank-note" id="season-note"></p>
+          <p class="formula">分數 ＝ 體脂減少比例 × 0.7 ＋ 體重減少比例 × 0.3</p>
+          <p class="hint">健康減重建議每週不超過 0.5–1 公斤</p>
+        </div>
+        <div class="card me-card" id="my-status"></div>
+        <div class="card">
+          <h2>排行榜</h2>
+          <p class="hint">只顯示綽號和分數，不會顯示任何人的體重</p>
+          <ol class="board" id="board"></ol>
+        </div>
+      </section>
+
+      <!-- 我的帳號 -->
+      <section class="tab" id="tab-account" hidden>
+        <form id="profile-form" class="card" novalidate>
+          <h2>基本資料</h2>
+          <label class="field">
+            <span>綽號</span>
+            <input type="text" name="nickname" maxlength="12">
+          </label>
+          <fieldset class="field">
+            <legend>性別</legend>
+            <div class="seg">
+              <label><input type="radio" name="sex" value="M"><span>男</span></label>
+              <label><input type="radio" name="sex" value="F"><span>女</span></label>
+            </div>
+          </fieldset>
+          <div class="grid-2">
+            <label class="field"><span>身高（公分）</span><input type="number" name="heightCm" inputmode="decimal" step="0.1"></label>
+            <label class="field"><span>目標體重（公斤）</span><input type="number" name="targetKg" inputmode="decimal" step="0.1"></label>
+          </div>
+          <p class="form-error" id="profile-error" role="alert"></p>
+          <button type="submit" class="btn primary block">儲存</button>
+        </form>
+
+        <div class="card">
+          <h2>我的資料</h2>
+          <p class="hint">下載成 Excel 可以打開的檔案</p>
+          <div class="btn-row">
+            <button type="button" class="btn" id="export-body">匯出身體數據</button>
+            <button type="button" class="btn" id="export-meals">匯出飲食紀錄</button>
+            <button type="button" class="btn" id="export-water">匯出飲水紀錄</button>
+            <button type="button" class="btn" id="export-bowel">匯出排便紀錄</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <p class="hint" id="login-with"></p>
+          <button type="button" class="btn block" id="logout">登出</button>
+          <button type="button" class="btn danger-outline block" id="delete-account">刪除帳號和所有資料</button>
+        </div>
+
+        <footer class="site-foot">
+          <a href="privacy.html">隱私權政策</a>
+          <span>本網站僅供記錄參考，不提供醫療建議</span>
+        </footer>
+      </section>
+    </main>
+
+    <nav class="tabbar" aria-label="主要分頁">
+      <button type="button" data-tab="today" class="active">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>今天記錄</span>
+      </button>
+      <button type="button" data-tab="trend">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg><span>我的變化</span>
+      </button>
+      <button type="button" data-tab="diary">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5zM8 10h8M8 14h8M8 18h5"/></svg><span>每日紀錄</span>
+      </button>
+      <button type="button" data-tab="rank">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg><span>競賽排行</span>
+      </button>
+      <button type="button" data-tab="account">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>我的帳號</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- 常見問題（登入前後都能看） -->
+  <section id="view-faq" class="view" hidden>
+    <header class="topbar">
+      <button type="button" class="back-btn" id="faq-back">‹ 返回</button>
+      <span class="topbar-title">常見問題</span>
+      <span></span>
+    </header>
+    <div class="page faq-page">
+      <div class="faq-search">
+        <input type="search" id="faq-q" placeholder="輸入關鍵字，例如：體脂、喝水、便秘" aria-label="搜尋常見問題">
+      </div>
+      <p class="hint" id="faq-count"></p>
+      <div id="faq-list"></div>
+      <p class="faq-note">以上內容參考衛生福利部國民健康署公開資料，僅供一般健康知識參考，不提供醫療建議。身體不適請就醫，並以醫師診斷為準。</p>
+    </div>
+  </section>
+
+  <!-- 對話框（確認、修改、刪除共用） -->
+  <dialog id="modal" class="modal">
+    <form method="dialog" class="modal-body" id="modal-form">
+      <p class="modal-msg" id="modal-msg"></p>
+      <div id="modal-extra"></div>
+      <div class="btn-row">
+        <button type="button" class="btn" id="modal-cancel">取消</button>
+        <button type="submit" class="btn primary" id="modal-ok">確定</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 看大張照片 -->
+  <dialog id="viewer" class="viewer">
+    <img id="viewer-img" alt="飲食照片">
+    <button type="button" class="btn" id="viewer-close">關閉</button>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/faq.js"></script>
+  <script src="js/scoring.js"></script>
+  <script src="js/photos.js"></script>
+  <script src="js/mock-api.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
