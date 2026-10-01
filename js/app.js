@@ -561,7 +561,6 @@
         muscleKg: num($('#in-muscle').value),
         visceralFat: num($('#in-visceral').value)
       };
-      if (rec.visceralFat != null) rec.visceralFat = Math.round(rec.visceralFat);
       if (rec.weightKg == null && rec.bodyFatPct == null && rec.muscleKg == null && rec.visceralFat == null) {
         toast('請至少填一項');
         return;
@@ -570,7 +569,7 @@
       if (rec.weightKg != null && (rec.weightKg < 20 || rec.weightKg > 300)) warn.push('體重 ' + rec.weightKg + ' 公斤');
       if (rec.bodyFatPct != null && (rec.bodyFatPct <= 0 || rec.bodyFatPct > 70)) warn.push('體脂 ' + rec.bodyFatPct + '%');
       if (rec.muscleKg != null && (rec.muscleKg <= 0 || rec.muscleKg > 150)) warn.push('肌肉量 ' + rec.muscleKg + ' 公斤');
-      if (rec.visceralFat != null && (rec.visceralFat < 1 || rec.visceralFat > 60)) warn.push('內臟脂肪 ' + rec.visceralFat + ' 級');
+      if (rec.visceralFat != null && (rec.visceralFat <= 0 || rec.visceralFat > 50)) warn.push('內臟脂肪 ' + rec.visceralFat + '%');
       if (warn.length && !(await ask(warn.join('、') + '，數字好像不太對，確定要儲存嗎？', { okText: '確定儲存', cancelText: '回去修改' }))) return;
       if (bodyOn(date) && !(await ask('這天已經記過了，要更新嗎？', { okText: '更新' }))) return;
       try {
@@ -696,7 +695,7 @@
     { key: 'weightKg', name: '體重', unit: '公斤', decimals: 1 },
     { key: 'bodyFatPct', name: '體脂', unit: '%', decimals: 1 },
     { key: 'muscleKg', name: '肌肉量', unit: '公斤', decimals: 1 },
-    { key: 'visceralFat', name: '內臟脂肪', unit: '級', decimals: 0 }
+    { key: 'visceralFat', name: '內臟脂肪', unit: '%', decimals: 1 }
   ];
 
   function renderCharts() {
@@ -955,7 +954,7 @@
     };
 
     $('#export-body').onclick = function () {
-      var rows = [['日期', '體重（公斤）', '體脂（%）', '肌肉量（公斤）', '內臟脂肪（等級）']];
+      var rows = [['日期', '體重（公斤）', '體脂（%）', '肌肉量（公斤）', '內臟脂肪（%）']];
       st.body.forEach(function (r) { rows.push([r.date, r.weightKg, r.bodyFatPct, r.muscleKg, r.visceralFat]); });
       download('花蓮共好健康生活_身體數據_' + HH.today() + '.csv', rows);
     };

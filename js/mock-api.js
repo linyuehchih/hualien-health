@@ -61,7 +61,7 @@
         weightKg: HH.round1(78.4 - 3.4 * t + (r() - 0.5) * 0.8),
         bodyFatPct: HH.round1(29.6 - 2.4 * t + (r() - 0.5) * 0.6),
         muscleKg: HH.round1(30.2 + 0.4 * t + (r() - 0.5) * 0.4),
-        visceralFat: Math.round(11 - 1.4 * t),
+        visceralFat: HH.round1(11.2 - 1.4 * t + (r() - 0.5) * 0.4),
         updatedAt: Date.now()
       });
     }

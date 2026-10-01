@@ -25,7 +25,7 @@
       if (o.band[0] > hi) hi = o.band[0];
     }
     if (o.decimals === 0 && hi - lo <= 3) {
-      // 變化很小的整數項目（內臟脂肪）：刻度對齊整數
+      // 變化很小的整數項目：刻度對齊整數
       var step = Math.max(1, Math.ceil((Math.ceil(hi) - Math.floor(lo) + 2) / 3));
       lo = Math.floor(lo) - 1;
       hi = lo + step * 3;
