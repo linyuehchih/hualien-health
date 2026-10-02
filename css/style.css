@@ -218,6 +218,9 @@ select:disabled { opacity: 0.55; }
 .btn-line svg { width: 24px; height: 24px; flex: none; }
 .btn-line { background: #06c755; border-color: #06c755; color: #fff; }
 
+/* 著作權：小圖像＋© 小志（每一頁最底下）；圖是白底，深色模式加圓角讓邊緣自然 */
+.copyright { margin: 18px 0 0; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.8rem; color: var(--muted); }
+.copyright img { height: 38px; width: auto; border-radius: 6px; }
 .site-foot { margin-top: 28px; text-align: center; font-size: 0.8rem; color: var(--muted); display: grid; gap: 4px; }
 
 /* ---------- 主畫面頂端與分頁列 ---------- */
