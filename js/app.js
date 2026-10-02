@@ -9,7 +9,7 @@
   var MEAL_ORDER = ['早餐', '午餐', '晚餐', '點心'];
   var WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
-  var st = { provider: null, profile: null, body: [], meals: [], water: [], bowel: [], tab: 'today', rankScope: 'all' };
+  var st = { provider: null, profile: null, body: [], meals: [], water: [], bowel: [], tab: 'today', rankScope: 'all', managed: [], selfNick: '', switching: false };
   var waterQueue = Promise.resolve(); // 飲水連按時依序存檔，不會漏算
   var WATER_WARN_ML = 6000;
   var pending = [];   // 還沒送出的照片 [{blob, url}]
@@ -165,6 +165,7 @@
     bindRank();
     bindAccount();
     bindShare();
+    bindManaged();
     $$('.tabbar button').forEach(function (b) {
       b.onclick = function () { switchTab(b.dataset.tab); };
     });
@@ -179,7 +180,7 @@
 
     if (!api.isDemo) {
       api.onAuthLost = function (msg) {
-        st = { provider: null, profile: null, body: [], meals: [], water: [], bowel: [], tab: 'today' };
+        st = { provider: null, profile: null, body: [], meals: [], water: [], bowel: [], tab: 'today', rankScope: 'all', managed: [], selfNick: '', switching: false };
         showView('login');
         toast(msg);
       };
@@ -456,16 +457,132 @@
     };
   }
 
-  // ---------- 主畫面 ----------
-  async function enterApp(profile) {
-    if (!profile) throw new Error('讀取不到個人資料');
+  // ---------- 代管：幫沒有 LINE 的長輩記錄 ----------
+  // 讀取「目前操作的人」（自己或代管的長輩）的全部資料
+  async function loadMemberData(profile) {
     st.profile = profile;
     var data = await Promise.all([api.getBody(), api.getMeals(), api.getWater(), api.getBowel()]);
     st.body = data[0];
     st.meals = data[1];
     st.water = data[2];
     st.bowel = data[3];
-    $('#hello').textContent = '嗨，' + profile.nickname;
+  }
+
+  // 頂端的「記錄給誰」選單、藍色提示條，依目前狀態更新
+  function updateWho() {
+    var acting = !!(api.getActive && api.getActive());
+    var has = st.managed.length > 0;
+    var sel = $('#who');
+    $('#hello').hidden = has;
+    $('#hello').textContent = '嗨，' + st.selfNick;
+    sel.hidden = !has;
+    if (has) {
+      var active = api.getActive();
+      sel.innerHTML = '<option value="">我自己（' + esc(st.selfNick) + '）</option>' + st.managed.map(function (m) {
+        return '<option value="' + esc(m.id) + '">幫 ' + esc(m.nickname) + ' 記錄</option>';
+      }).join('');
+      sel.value = active || '';
+    }
+    $('#view-app').classList.toggle('is-acting', acting);
+    $('#acting-bar').hidden = !acting;
+    if (acting) $('#acting-text').textContent = '目前是幫「' + st.profile.nickname + '」記錄（不是你自己）';
+  }
+
+  // 切換記錄的對象；id＝null 就是換回自己
+  async function loadMember(id) {
+    if (st.switching) return;
+    st.switching = true;
+    try {
+      await waterQueue.catch(function () { /* 前一筆飲水存檔失敗也不影響切換 */ });
+      var profile = await api.switchTo(id);
+      await loadMemberData(profile);
+      st.managed = await api.listManaged();
+      updateWho();
+      clearPending();
+      setupDatePicker();
+      switchTab('today');
+      if (id) toast('現在是幫「' + profile.nickname + '」記錄');
+    } catch (e) {
+      toast(friendlyError(e));
+      try {
+        // 切換失敗：回到自己，畫面不要留在半套的狀態
+        var me = await api.switchTo(null);
+        await loadMemberData(me);
+        st.managed = await api.listManaged();
+        updateWho();
+        switchTab('today');
+      } catch (e2) { /* 還是失敗的話，提示已經跳出，請使用者重新整理 */ }
+    } finally {
+      st.switching = false;
+    }
+  }
+
+  async function afterProfileSaved() {
+    if (!api.getActive()) st.selfNick = st.profile.nickname;
+    st.managed = await api.listManaged();
+    updateWho();
+  }
+
+  function renderManagedList() {
+    var acting = !!api.getActive();
+    $('#managed-card').hidden = acting;
+    if (acting) return;
+    var n = st.managed.length;
+    $('#managed-list').innerHTML = (n ? '<p class="count">已建立 ' + n + '／5 位</p>' : '') + st.managed.map(function (m) {
+      return '<div class="managed-row"><span class="nick">' + esc(m.nickname) + '</span>' +
+        '<button type="button" class="link-btn" data-switch="' + esc(m.id) + '">切換過去記錄</button></div>';
+    }).join('');
+    $('#managed-add').disabled = n >= 5;
+    $('#managed-add').textContent = n >= 5 ? '已經建立 5 位了（上限）' : '新增長輩的帳號';
+  }
+
+  function bindManaged() {
+    var form = $('#managed-form');
+    buildSitePicker(form);
+    bindBodyFields(form);
+    $('#who').onchange = function () { loadMember($('#who').value || null); };
+    $('#acting-back').onclick = function () { loadMember(null); };
+    $('#managed-list').onclick = function (e) {
+      var b = e.target.closest('[data-switch]');
+      if (b) loadMember(b.dataset.switch);
+    };
+    api.onManagedLost = function (msg) { toast(msg); loadMember(null); };
+
+    $('#managed-add').onclick = function () {
+      form.reset();
+      setSitePicker(form, '', '');
+      form.refreshBodyFields();
+      $('#managed-error').textContent = '';
+      $('#managed-dialog').showModal();
+    };
+    $('#managed-cancel').onclick = function () { $('#managed-dialog').close(); };
+    form.onsubmit = async function (e) {
+      e.preventDefault();
+      var p = readProfileForm(form, $('#managed-error'), false);
+      if (!p) return;
+      if (!form.consent.checked) { $('#managed-error').textContent = '請勾選「我已告知對方，並取得對方同意」'; return; }
+      var btn = $('#managed-submit');
+      if (btn.disabled) return;
+      btn.disabled = true;
+      try {
+        var res = await api.createManaged(Object.assign({}, p, { consent: true }));
+        $('#managed-dialog').close();
+        await loadMember(res.id);
+      } catch (err) {
+        $('#managed-error').textContent = friendlyError(err);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+  }
+
+  // ---------- 主畫面 ----------
+  async function enterApp(profile) {
+    if (!profile) throw new Error('讀取不到個人資料');
+    await loadMemberData(profile);
+    st.selfNick = profile.nickname;
+    st.managed = await api.listManaged();
+    updateWho();
     showView('app');
     setupDatePicker();
     clearPending();
@@ -1293,7 +1410,12 @@
     setSitePicker(f, p.village, p.siteId);
     $('#profile-error').textContent = !p.birthYear ? '請補填出生年，才能看到適合你的提醒'
       : (p.village ? '' : '請補選住在哪一里，才能看本里的排行');
-    $('#login-with').textContent = '目前用 LINE 登入';
+    var acting = !!api.getActive();
+    $('#profile-title').textContent = acting ? '「' + p.nickname + '」的基本資料' : '基本資料';
+    $('#login-with').textContent = acting ? '你正在幫「' + p.nickname + '」管理這個帳號（長輩不需要登入）' : '目前用 LINE 登入';
+    $('#logout').hidden = acting;
+    $('#delete-account').textContent = acting ? '刪除「' + p.nickname + '」的帳號和所有資料' : '刪除帳號和所有資料';
+    renderManagedList();
   }
 
   function csvCell(v) {
@@ -1323,7 +1445,7 @@
       var p = readProfileForm(f, $('#profile-error'), false);
       if (!p) return;
       st.profile = await api.saveProfile(p, false);
-      $('#hello').textContent = '嗨，' + st.profile.nickname;
+      await afterProfileSaved();
       fillAccount();
       toast('已儲存');
     };
@@ -1363,7 +1485,18 @@
     };
 
     $('#delete-account').onclick = async function () {
-      var ok = await ask('刪除後，你的身體數據、飲食紀錄和照片都會永久消失，無法復原。確定要刪除，請輸入「確認刪除」。', {
+      var wasActing = !!api.getActive();
+      var msg;
+      if (wasActing) {
+        msg = '刪除後，「' + st.profile.nickname + '」的身體數據、飲食紀錄和照片都會永久消失，無法復原。確定要刪除，請輸入「確認刪除」。';
+      } else {
+        msg = '刪除後，你的身體數據、飲食紀錄和照片都會永久消失，無法復原。';
+        if (st.managed.length) {
+          msg += '你幫忙建立的 ' + st.managed.length + ' 位長輩（' + st.managed.map(function (m) { return m.nickname; }).join('、') + '）的資料也會一起刪除。';
+        }
+        msg += '確定要刪除，請輸入「確認刪除」。';
+      }
+      var ok = await ask(msg, {
         okText: '永久刪除',
         danger: true,
         extraHtml: '<input type="text" id="confirm-input" placeholder="確認刪除" autocomplete="off">',
@@ -1376,7 +1509,13 @@
       });
       if (!ok) return;
       await api.deleteAccount();
-      st = { provider: null, profile: null, body: [], meals: [], water: [], bowel: [], tab: 'today' };
+      if (wasActing) {
+        // 只刪了這位長輩：回到自己
+        await loadMember(null);
+        toast('已刪除這位長輩的帳號和所有資料');
+        return;
+      }
+      st = { provider: null, profile: null, body: [], meals: [], water: [], bowel: [], tab: 'today', rankScope: 'all', managed: [], selfNick: '', switching: false };
       showView('login');
       toast('帳號和所有資料已刪除');
     };

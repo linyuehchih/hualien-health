@@ -233,6 +233,25 @@ select:disabled { opacity: 0.55; }
 }
 .back-btn { font: inherit; font-weight: 600; background: none; border: 0; color: var(--primary-ink); padding: 6px 4px; cursor: pointer; }
 
+/* ---------- 代管：幫沒有 LINE 的長輩記錄 ---------- */
+.who-select {
+  font: inherit; font-size: 0.85rem; min-height: 36px; max-width: 46vw; padding: 4px 8px;
+  border-radius: 10px; border: 2px solid rgba(255, 255, 255, 0.85); background: transparent; color: var(--primary-ink);
+  text-overflow: ellipsis;
+}
+.who-select option { color: #1b2a24; background: #ffffff; }
+.is-acting .topbar { background: var(--sea-ink); }
+.acting-bar {
+  position: sticky; top: 60px; z-index: 4;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  background: var(--tip-bg); color: var(--sea-ink); padding: 6px 16px; font-size: 0.9rem; font-weight: 600;
+}
+.managed-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); }
+.managed-row .nick { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.managed-dialog { max-height: 92vh; overflow-y: auto; }
+#managed-list { margin: 8px 0 4px; }
+#managed-list .count { color: var(--muted); font-size: 0.85rem; margin-bottom: 4px; }
+
 /* ---------- 常見問題 ---------- */
 #view-faq .page { padding-bottom: 32px; }
 .faq-search { position: sticky; top: 60px; z-index: 4; background: var(--bg); padding: 4px 0 8px; }

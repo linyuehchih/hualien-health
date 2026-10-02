@@ -108,9 +108,15 @@
       <span class="topbar-title">花蓮共好健康生活</span>
       <span class="topbar-right">
         <span class="topbar-hello" id="hello"></span>
+        <select id="who" class="who-select" aria-label="現在是幫誰記錄" hidden></select>
         <button type="button" class="help-btn" data-open-faq aria-label="常見問題">問</button>
       </span>
     </header>
+
+    <div class="acting-bar" id="acting-bar" hidden>
+      <span id="acting-text"></span>
+      <button type="button" class="link-btn" id="acting-back">換回我自己</button>
+    </div>
 
     <main class="page">
 
@@ -253,7 +259,7 @@
       <!-- 我的帳號 -->
       <section class="tab" id="tab-account" hidden>
         <form id="profile-form" class="card" novalidate>
-          <h2>基本資料</h2>
+          <h2 id="profile-title">基本資料</h2>
           <label class="field">
             <span>綽號</span>
             <input type="text" name="nickname" maxlength="12">
@@ -290,6 +296,13 @@
             <button type="button" class="btn" id="export-water">匯出飲水紀錄</button>
             <button type="button" class="btn" id="export-bowel">匯出排便紀錄</button>
           </div>
+        </div>
+
+        <div class="card" id="managed-card">
+          <h2>幫沒有 LINE 的長輩建立帳號</h2>
+          <p class="hint">長輩不用有 LINE，由你用自己的 LINE 幫他記錄，也能一起參加排行榜。一個帳號最多可以幫 5 位長輩建立。</p>
+          <div id="managed-list"></div>
+          <button type="button" class="btn block" id="managed-add">新增長輩的帳號</button>
         </div>
 
         <div class="card">
@@ -349,6 +362,55 @@
       <div class="btn-row">
         <button type="button" class="btn" id="modal-cancel">取消</button>
         <button type="submit" class="btn primary" id="modal-ok">確定</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 幫沒有 LINE 的長輩建立帳號 -->
+  <dialog id="managed-dialog" class="modal managed-dialog">
+    <form id="managed-form" class="modal-body" novalidate>
+      <h2>幫長輩建立帳號</h2>
+      <p class="hint">長輩不用有 LINE。建立後，由你用自己的 LINE 切換過去，幫他記錄。</p>
+      <label class="field">
+        <span>綽號（排行榜上顯示的名字）</span>
+        <input type="text" name="nickname" maxlength="12" placeholder="可以留空，會自動給一個編號">
+      </label>
+      <fieldset class="field">
+        <legend>性別（用來判斷體脂是否偏高）</legend>
+        <div class="seg">
+          <label><input type="radio" name="sex" value="M"><span>男</span></label>
+          <label><input type="radio" name="sex" value="F"><span>女</span></label>
+        </div>
+      </fieldset>
+      <div class="grid-2">
+        <label class="field">
+          <span>出生年（民國）</span>
+          <input type="text" name="birthYear" inputmode="numeric" maxlength="4" placeholder="例如 45">
+        </label>
+        <label class="field">
+          <span>身高（公分）</span>
+          <input type="number" name="heightCm" inputmode="decimal" step="0.1" min="100" max="230" placeholder="例如 155">
+        </label>
+      </div>
+      <p class="hint birth-hint"></p>
+      <label class="field">
+        <span>目標體重（公斤，不知道可以先不填）</span>
+        <input type="number" name="targetKg" inputmode="decimal" step="0.1" min="30" max="200" placeholder="例如 55">
+      </label>
+      <div class="target-help">
+        <p class="range-line"></p>
+        <button type="button" class="link-btn fill-mid" hidden></button>
+        <p class="target-warn" hidden></p>
+      </div>
+      <div class="site-picker"></div>
+      <label class="check">
+        <input type="checkbox" name="consent">
+        <span>我已告知對方，並取得對方同意，由我幫他建立帳號、記錄他的健康資料</span>
+      </label>
+      <p class="form-error" id="managed-error" role="alert"></p>
+      <div class="btn-row">
+        <button type="button" class="btn" id="managed-cancel">取消</button>
+        <button type="submit" class="btn primary" id="managed-submit">建立並切換過去</button>
       </div>
     </form>
   </dialog>

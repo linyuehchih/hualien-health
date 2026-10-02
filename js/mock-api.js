@@ -5,6 +5,7 @@
   var HH = g.HH;
   var KEY = 'hh_demo_v1';
   var memory = null; // 瀏覽器不給存時的備用
+  var activeId = null; // 代管中的成員編號；null＝自己
   // 示範模式的照片只暫存在這次開啟的畫面裡（重新整理就不見），Step 4 改存到雲端硬碟
   var photoStore = {};
 
@@ -29,6 +30,11 @@
   function delay(v) { return new Promise(function (r) { setTimeout(function () { r(v); }, 120); }); }
   function fail(msg) { return Promise.reject(new Error(msg)); }
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
+  // 目前操作的對象：自己（整份資料），或代管的成員（s.managed 裡的一筆，欄位同樣有 profile、body…）
+  function cur(s) {
+    if (!activeId) return s;
+    return (s.managed || []).find(function (m) { return m.id === activeId; }) || s;
+  }
 
   // 固定亂數，讓每次產生的示範資料都一樣
   function rng(seed) {
@@ -167,6 +173,7 @@
 
     login: function (provider) {
       var s = load();
+      activeId = null;
       s.session = { provider: provider };
       save(s);
       return delay({ needsProfile: !s.profile });
@@ -174,6 +181,7 @@
 
     logout: function () {
       var s = load();
+      activeId = null;
       s.session = null;
       save(s);
       return delay(true);
@@ -184,27 +192,60 @@
       var s = load();
       if (!s.session) return fail('請先登入');
       var nickname = (p.nickname || '').trim();
-      if (!nickname) nickname = (s.profile && s.profile.nickname) || randomTag();
-      s.profile = {
+      if (!nickname) nickname = (cur(s).profile && cur(s).profile.nickname) || randomTag();
+      cur(s).profile = {
         nickname: nickname.slice(0, 12),
         sex: p.sex,
         heightCm: p.heightCm,
         targetKg: p.targetKg,
-        birthYear: p.birthYear || (s.profile && s.profile.birthYear) || null,
+        birthYear: p.birthYear || (cur(s).profile && cur(s).profile.birthYear) || null,
         village: p.village || '',
         siteId: p.siteId || '',
-        agreedAt: (s.profile && s.profile.agreedAt) || Date.now()
+        agreedAt: (cur(s).profile && cur(s).profile.agreedAt) || Date.now()
       };
-      if (isNew) { s.body = seedBody(); s.meals = seedMeals(); s.water = seedWater(); s.bowel = seedBowel(); }
+      if (isNew) { cur(s).body = seedBody(); cur(s).meals = seedMeals(); cur(s).water = seedWater(); cur(s).bowel = seedBowel(); }
       save(s);
-      return delay(clone(s.profile));
+      return delay(clone(cur(s).profile));
     },
 
     refresh: function () { return delay(true); },
 
+    // ---- 代管成員（幫沒有 LINE 的長輩記錄；示範資料）----
+    listManaged: function () {
+      return delay((load().managed || []).map(function (m) { return { id: m.id, nickname: m.profile.nickname }; }));
+    },
+
+    createManaged: function (p) {
+      if (p.consent !== true) return fail('請勾選「我已告知對方並取得同意」');
+      var s = load();
+      s.managed = s.managed || [];
+      if (s.managed.length >= 5) return fail('一個帳號最多可以幫 5 位長輩建立帳號');
+      var m = {
+        id: 'g' + Date.now() + Math.floor(Math.random() * 1000),
+        profile: {
+          nickname: ((p.nickname || '').trim() || randomTag()).slice(0, 12), sex: p.sex, heightCm: p.heightCm, targetKg: p.targetKg,
+          birthYear: p.birthYear || null, village: p.village || '', siteId: p.siteId || '', agreedAt: Date.now(), managed: true
+        },
+        body: seedBody(), meals: [], water: seedWater(), bowel: seedBowel()
+      };
+      s.managed.push(m);
+      save(s);
+      return delay({ id: m.id, profile: clone(m.profile) });
+    },
+
+    switchTo: function (id) {
+      var s = load();
+      var m = id ? (s.managed || []).find(function (x) { return x.id === id; }) : null;
+      if (id && !m) return fail('找不到這位代管的成員，請重新整理網頁');
+      activeId = id || null;
+      return delay(clone(cur(s).profile));
+    },
+
+    getActive: function () { return activeId; },
+
     getBody: function () {
       var s = load();
-      return delay(clone(s.body).sort(function (a, b) { return a.date < b.date ? -1 : 1; }));
+      return delay(clone(cur(s).body).sort(function (a, b) { return a.date < b.date ? -1 : 1; }));
     },
 
     saveBody: function (rec) {
@@ -216,8 +257,8 @@
         muscleKg: rec.muscleKg, visceralFat: rec.visceralFat,
         updatedAt: Date.now()
       };
-      var i = s.body.findIndex(function (r) { return r.date === rec.date; });
-      if (i >= 0) s.body[i] = clean; else s.body.push(clean);
+      var i = cur(s).body.findIndex(function (r) { return r.date === rec.date; });
+      if (i >= 0) cur(s).body[i] = clean; else cur(s).body.push(clean);
       save(s);
       return delay(clone(clean));
     },
@@ -236,7 +277,7 @@
         return pid;
       });
       var meal = { id: 'm' + Date.now() + Math.floor(Math.random() * 1000), date: m.date, meal: m.meal, text: m.text, photoIds: photoIds, createdAt: Date.now() };
-      s.meals.push(meal);
+      cur(s).meals.push(meal);
       save(s);
       return delay(clone(meal));
     },
@@ -248,7 +289,7 @@
 
     updateMeal: function (id, patch) {
       var s = load();
-      var m = s.meals.find(function (x) { return x.id === id; });
+      var m = cur(s).meals.find(function (x) { return x.id === id; });
       if (!m) return fail('找不到這筆紀錄');
       m.meal = patch.meal;
       m.text = patch.text;
@@ -258,9 +299,9 @@
 
     deleteMeal: function (id) {
       var s = load();
-      var m = s.meals.find(function (x) { return x.id === id; });
+      var m = cur(s).meals.find(function (x) { return x.id === id; });
       if (m) dropPhotos(m.photoIds);
-      s.meals = s.meals.filter(function (x) { return x.id !== id; });
+      cur(s).meals = cur(s).meals.filter(function (x) { return x.id !== id; });
       save(s);
       return delay(true);
     },
@@ -275,8 +316,8 @@
       if (!(ml >= 0) || ml > 20000) return fail('飲水量的數字不正確');
       var s = load();
       var rec = { date: date, ml: Math.round(ml), updatedAt: Date.now() };
-      var i = s.water.findIndex(function (w) { return w.date === date; });
-      if (i >= 0) s.water[i] = rec; else s.water.push(rec);
+      var i = cur(s).water.findIndex(function (w) { return w.date === date; });
+      if (i >= 0) cur(s).water[i] = rec; else cur(s).water.push(rec);
       save(s);
       return delay(clone(rec));
     },
@@ -291,21 +332,21 @@
       if (['多', '中', '少'].indexOf(b.amount) < 0 || ['硬', '軟', '未成形'].indexOf(b.form) < 0) return fail('請選擇量和型態');
       var s = load();
       var rec = { id: 'b' + Date.now() + Math.floor(Math.random() * 1000), date: b.date, amount: b.amount, form: b.form, createdAt: Date.now() };
-      s.bowel.push(rec);
+      cur(s).bowel.push(rec);
       save(s);
       return delay(clone(rec));
     },
 
     deleteBowel: function (id) {
       var s = load();
-      s.bowel = s.bowel.filter(function (x) { return x.id !== id; });
+      cur(s).bowel = cur(s).bowel.filter(function (x) { return x.id !== id; });
       save(s);
       return delay(true);
     },
 
     getLeaderboard: function (scope) {
       var s = load();
-      var prof = s.profile || {};
+      var prof = cur(s).profile || {};
       var today = HH.today();
       var season = HH.seasonOf(today);
       var note = '';
@@ -325,8 +366,8 @@
       var entries = others.map(function (o) {
         return { id: o.id, nickname: o.nickname, hidden: o.hidden, isMe: false, result: HH.scoreMember(o.records, season, today) };
       });
-      var mine = HH.scoreMember(s.body, season, today);
-      entries.push({ id: 'me', nickname: s.profile ? s.profile.nickname : '我', hidden: false, isMe: true, result: mine });
+      var mine = HH.scoreMember(cur(s).body, season, today);
+      entries.push({ id: 'me', nickname: cur(s).profile ? cur(s).profile.nickname : '我', hidden: false, isMe: true, result: mine });
       var ranked = HH.rankEntries(entries);
       var meRow = ranked.find(function (e) { return e.isMe; });
       return delay({
@@ -339,6 +380,13 @@
     },
 
     deleteAccount: function () {
+      if (activeId) {
+        var s = load();
+        s.managed = (s.managed || []).filter(function (m) { return m.id !== activeId; });
+        activeId = null;
+        save(s);
+        return delay(true);
+      }
       dropPhotos(Object.keys(photoStore));
       save(emptyState());
       return delay(true);
@@ -348,6 +396,7 @@
     resetDemo: function () {
       try { localStorage.removeItem(KEY); } catch (e) { /* 沒關係 */ }
       memory = null;
+      activeId = null;
       return delay(true);
     }
   };
