@@ -362,7 +362,9 @@
 
   // ---------- 出生年、身高、目標體重：旁邊即時顯示建議體重範圍與提醒 ----------
   var ELDER_TARGET_NOTE = '65 歲以上不建議快速減重。目標請先和醫師或營養師討論；如果現在的體重已在建議範圍內，目標以「維持體重和肌力」為主。';
-  var ELDER_SHORT_NOTE = '65 歲以上不建議快速減重；體重已在建議範圍內的話，以維持體重和肌力為主。有疑問請洽醫師或營養師。';
+  var RANK_NORMAL_NOTE = '你的體重已在建議範圍內，這一季建議以維持體重和肌力為主，不要為了名次減太多。分數高不代表比較健康。';
+  var RANK_LOW_NOTE = '你的體重已低於建議範圍，繼續減重可能傷害健康。建議先暫停減重，並諮詢醫師或營養師。排名只是遊戲，健康比名次重要。';
+  var ELDER_SHORT_NOTE ='65 歲以上不建議快速減重；體重已在建議範圍內的話，以維持體重和肌力為主。有疑問請洽醫師或營養師。';
 
   function bindBodyFields(form) {
     var birthHint = form.querySelector('.birth-hint');
@@ -1693,6 +1695,12 @@
     $('#board-group').hidden = group.scope !== 'site';
     $('#rank-elder').textContent = ELDER_SHORT_NOTE;
     $('#rank-elder').hidden = !HH.isElder(st.profile.birthYear);
+    // 依最新 BMI 提醒：標準體重內不要為了名次減太多；過輕要暫停減重（只是文字，不影響分數與排名）
+    var lw = latest('weightKg');
+    var bmiNow = lw && st.profile.heightCm ? HH.bmi(lw.weightKg, st.profile.heightCm) : null;
+    var bmiNote = bmiNow == null ? '' : bmiNow < HH.BMI_LOW ? RANK_LOW_NOTE : bmiNow < HH.BMI_HIGH ? RANK_NORMAL_NOTE : '';
+    $('#rank-bmi').textContent = bmiNote;
+    $('#rank-bmi').hidden = !bmiNote;
 
     var r = lb.me.result;
     var me;
