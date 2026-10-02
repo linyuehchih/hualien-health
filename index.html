@@ -73,13 +73,23 @@
         </fieldset>
         <div class="grid-2">
           <label class="field">
+            <span>出生年（民國）</span>
+            <input type="text" name="birthYear" inputmode="numeric" maxlength="4" placeholder="例如 45">
+          </label>
+          <label class="field">
             <span>身高（公分）</span>
             <input type="number" name="heightCm" inputmode="decimal" step="0.1" min="100" max="230" placeholder="例如 165">
           </label>
-          <label class="field">
-            <span>目標體重（公斤）</span>
-            <input type="number" name="targetKg" inputmode="decimal" step="0.1" min="30" max="200" placeholder="例如 60">
-          </label>
+        </div>
+        <p class="hint birth-hint"></p>
+        <label class="field">
+          <span>目標體重（公斤，不知道可以先不填）</span>
+          <input type="number" name="targetKg" inputmode="decimal" step="0.1" min="30" max="200" placeholder="例如 60">
+        </label>
+        <div class="target-help">
+          <p class="range-line"></p>
+          <button type="button" class="link-btn fill-mid" hidden></button>
+          <p class="target-warn" hidden></p>
         </div>
         <div class="site-picker"></div>
         <label class="check">
@@ -228,6 +238,7 @@
           <p class="rank-note" id="season-note"></p>
           <p class="formula">分數 ＝ 體脂減少比例 × 0.7 ＋ 體重減少比例 × 0.3</p>
           <p class="hint">健康減重建議每週不超過 0.5–1 公斤</p>
+          <p class="elder-note" id="rank-elder" hidden></p>
         </div>
         <div class="card me-card" id="my-status"></div>
         <div class="card">
@@ -254,8 +265,15 @@
             </div>
           </fieldset>
           <div class="grid-2">
+            <label class="field"><span>出生年（民國）</span><input type="text" name="birthYear" inputmode="numeric" maxlength="4" placeholder="例如 45"></label>
             <label class="field"><span>身高（公分）</span><input type="number" name="heightCm" inputmode="decimal" step="0.1"></label>
-            <label class="field"><span>目標體重（公斤）</span><input type="number" name="targetKg" inputmode="decimal" step="0.1"></label>
+          </div>
+          <p class="hint birth-hint"></p>
+          <label class="field"><span>目標體重（公斤，不知道可以先不填）</span><input type="number" name="targetKg" inputmode="decimal" step="0.1"></label>
+          <div class="target-help">
+            <p class="range-line"></p>
+            <button type="button" class="link-btn fill-mid" hidden></button>
+            <p class="target-warn" hidden></p>
           </div>
           <div class="site-picker"></div>
           <p class="form-error" id="profile-error" role="alert"></p>

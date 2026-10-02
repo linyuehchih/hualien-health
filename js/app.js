@@ -49,6 +49,16 @@
     container.querySelectorAll('input[name="' + name + '"]').forEach(function (el) { el.checked = el.value === value; });
   }
 
+  // 程式內部的錯誤訊息（例如 JSON Parse error）民眾看不懂，換成白話
+  function friendlyError(e) {
+    var msg = (e && e.message) || '';
+    if (!msg) return '發生錯誤，請稍後再試';
+    if (/JSON|Unexpected|undefined|null|not a function|not an object|Cannot read|is not/i.test(msg)) {
+      return '畫面讀取資料時出了點問題，請重新整理網頁再試一次';
+    }
+    return msg;
+  }
+
   var toastTimer = null;
   function toast(msg) {
     var t = $('#toast');
@@ -160,7 +170,7 @@
 
     // 沒有個別處理的錯誤（例如網路斷線），統一用提示訊息告訴使用者
     window.addEventListener('unhandledrejection', function (e) {
-      toast((e.reason && e.reason.message) || '發生錯誤，請稍後再試');
+      toast(friendlyError(e.reason));
     });
 
     // LINE 登入回來時網址會帶登入代碼：先記下來並立刻從網址列清掉
@@ -347,6 +357,51 @@
     }
   }
 
+  // ---------- 出生年、身高、目標體重：旁邊即時顯示建議體重範圍與提醒 ----------
+  var ELDER_TARGET_NOTE = '65 歲以上不建議快速減重。目標請先和醫師或營養師討論；如果現在的體重已在建議範圍內，目標以「維持體重和肌力」為主。';
+  var ELDER_SHORT_NOTE = '65 歲以上不建議快速減重；體重已在建議範圍內的話，以維持體重和肌力為主。有疑問請洽醫師或營養師。';
+
+  function bindBodyFields(form) {
+    var birthHint = form.querySelector('.birth-hint');
+    var rangeLine = form.querySelector('.range-line');
+    var fillBtn = form.querySelector('.fill-mid');
+    var warn = form.querySelector('.target-warn');
+
+    function refresh() {
+      var by = HH.parseBirthYear(form.birthYear.value);
+      var raw = form.birthYear.value.trim();
+      birthHint.textContent = by != null ? '西元 ' + by + ' 年，今年約 ' + HH.ageOf(by) + ' 歲'
+        : (raw ? '請填民國年，例如 45（民國 45 年出生）' : '');
+
+      var h = num(form.heightCm.value);
+      var range = h != null && h >= 100 && h <= 230 ? HH.suggestedWeight(h) : null;
+      if (range) {
+        rangeLine.innerHTML = '依你的身高，建議體重 <strong>' + range[0].toFixed(1) + '～' + range[1].toFixed(1) + ' 公斤</strong>（BMI ' + HH.BMI_LOW + '～' + HH.BMI_HIGH + '）';
+        var mid = HH.round1((range[0] + range[1]) / 2);
+        fillBtn.textContent = '不知道怎麼設？填入範圍中間值（' + mid.toFixed(1) + ' 公斤）';
+        fillBtn.dataset.mid = mid;
+        fillBtn.hidden = false;
+      } else {
+        rangeLine.textContent = '先填身高，這裡會顯示適合你的建議體重範圍';
+        fillBtn.hidden = true;
+      }
+
+      var msgs = [];
+      var t = num(form.targetKg.value);
+      if (range && t != null && t > 0 && t < range[0]) {
+        msgs.push('目標比建議範圍的下限（' + range[0].toFixed(1) + ' 公斤）還低，太瘦對健康也不好，建議重新考慮。');
+      }
+      if (HH.isElder(by)) msgs.push(ELDER_TARGET_NOTE);
+      warn.innerHTML = msgs.map(esc).join('<br>');
+      warn.hidden = !msgs.length;
+    }
+
+    ['birthYear', 'heightCm', 'targetKg'].forEach(function (n) { form[n].addEventListener('input', refresh); });
+    fillBtn.onclick = function () { form.targetKg.value = fillBtn.dataset.mid; refresh(); };
+    form.refreshBodyFields = refresh;
+    refresh();
+  }
+
   // ---------- 基本資料（第一次登入、我的帳號共用檢查）----------
   function readProfileForm(form, errEl, needAgree) {
     var p = {
@@ -354,13 +409,15 @@
       sex: radioValue(form, 'sex'),
       heightCm: num(form.heightCm.value),
       targetKg: num(form.targetKg.value),
+      birthYear: HH.parseBirthYear(form.birthYear.value),
       village: form.village.value,
       siteId: form.siteType.value ? form.siteId.value : ''
     };
     var err = '';
     if (!p.sex) err = '請選擇性別';
+    else if (p.birthYear == null) err = '請填寫出生年（民國年，例如 45）';
     else if (p.heightCm == null || p.heightCm < 100 || p.heightCm > 230) err = '請填寫身高（100～230 公分）';
-    else if (p.targetKg == null || p.targetKg < 30 || p.targetKg > 200) err = '請填寫目標體重（30～200 公斤）';
+    else if (p.targetKg != null && (p.targetKg < 30 || p.targetKg > 200)) err = '目標體重請填 30～200 公斤，不知道的話可以先留空';
     else if (!p.village) err = '請選擇住在哪一里';
     else if (form.siteType.value && !p.siteId) err = '請選擇承辦單位；沒有參加據點的話，類型選「沒有參加據點」';
     else if (needAgree && !form.agree.checked) err = '請先勾選同意隱私權政策';
@@ -372,18 +429,35 @@
     var form = $('#onboard-form');
     buildSitePicker(form);
     setSitePicker(form, '', '');
+    bindBodyFields(form);
     form.onsubmit = async function (e) {
       e.preventDefault();
       var p = readProfileForm(form, $('#onboard-error'), true);
       if (!p) return;
-      var profile = await api.saveProfile(p, true);
-      enterApp(profile);
-      toast('歡迎，' + profile.nickname + '！');
+      var btn = form.querySelector('button[type="submit"]');
+      if (btn.disabled) return; // 連按兩次不重複送出
+      btn.disabled = true;
+      try {
+        var profile = await api.saveProfile(p, true);
+        try {
+          await enterApp(profile);
+        } catch (err) {
+          // 會員已建好，只是讀取資料時出錯：重新向後台讀一次，再進主畫面
+          if (api.refresh) await api.refresh();
+          await enterApp(profile);
+        }
+        toast('歡迎，' + profile.nickname + '！');
+      } catch (err) {
+        toast(friendlyError(err));
+      } finally {
+        btn.disabled = false;
+      }
     };
   }
 
   // ---------- 主畫面 ----------
   async function enterApp(profile) {
+    if (!profile) throw new Error('讀取不到個人資料');
     st.profile = profile;
     var data = await Promise.all([api.getBody(), api.getMeals(), api.getWater(), api.getBowel()]);
     st.body = data[0];
@@ -395,6 +469,17 @@
     setupDatePicker();
     clearPending();
     switchTab('today');
+    if (!profile.birthYear) promptBirthYear();
+  }
+
+  // 舊會員沒有出生年：打開網站時主動提醒，按「現在去填」直接帶到「我的帳號」
+  async function promptBirthYear() {
+    var go = await ask('請補填「出生年」。只收年份，不收月日，用來判斷是否為 65 歲以上；65 歲以上的朋友會多一些減重安全提醒。', {
+      okText: '現在去填', cancelText: '稍後再說'
+    });
+    if (!go) return;
+    switchTab('account');
+    $('#profile-form').birthYear.focus();
   }
 
   function switchTab(name) {
@@ -739,10 +824,14 @@
       h.push('<div class="bmi-top"><div><p class="sub">我的 BMI</p><p class="bmi-num">' + b.toFixed(1) + '</p></div>' + tag(HH.bmiCategory(b)) + '</div>');
       h.push('<p class="bmi-range">建議範圍 ' + HH.BMI_LOW + '～' + HH.BMI_HIGH + '</p>');
       h.push('<p>依你的身高 ' + p.heightCm + ' 公分，建議體重 <strong>' + range[0].toFixed(1) + '～' + range[1].toFixed(1) + ' 公斤</strong></p>');
-      var gap = HH.round1(lw.weightKg - p.targetKg);
-      h.push('<p>' + (gap > 0
-        ? '目標 ' + p.targetKg + ' 公斤，<strong>還差 ' + gap.toFixed(1) + ' 公斤</strong>'
-        : '已達成目標體重 ' + p.targetKg + ' 公斤！') + '</p>');
+      if (p.targetKg == null) {
+        h.push('<p class="hint">還沒設定目標體重，想設定可以到「我的帳號」填寫</p>');
+      } else {
+        var gap = HH.round1(lw.weightKg - p.targetKg);
+        h.push('<p>' + (gap > 0
+          ? '目標 ' + p.targetKg + ' 公斤，<strong>還差 ' + gap.toFixed(1) + ' 公斤</strong>'
+          : '已達成目標體重 ' + p.targetKg + ' 公斤！') + '</p>');
+      }
     } else {
       h.push('<p class="sub">我的 BMI</p><p>記錄體重後就會顯示 BMI</p>');
       h.push('<p class="bmi-range">建議範圍 ' + HH.BMI_LOW + '～' + HH.BMI_HIGH + '，依你的身高建議體重 ' + range[0].toFixed(1) + '～' + range[1].toFixed(1) + ' 公斤</p>');
@@ -751,6 +840,7 @@
       h.push('<p class="fat-line">體脂 ' + lf.bodyFatPct.toFixed(1) + '% ' + tag(HH.fatStatus(p.sex, lf.bodyFatPct)) +
         '<span class="hint">' + (p.sex === 'F' ? '女性' : '男性') + ' ' + HH.fatThreshold(p.sex) + '% 以上屬偏高</span></p>');
     }
+    if (HH.isElder(p.birthYear)) h.push('<p class="elder-note">' + esc(ELDER_SHORT_NOTE) + '</p>');
     $('#bmi-card').innerHTML = h.join('');
     renderCharts();
   }
@@ -969,6 +1059,8 @@
     $('#board-title').textContent = '排行榜' + (group.scope === 'all' ? '（全部）' : inGroup);
     $('#board-group').textContent = group.scope === 'site' ? group.label : '';
     $('#board-group').hidden = group.scope !== 'site';
+    $('#rank-elder').textContent = ELDER_SHORT_NOTE;
+    $('#rank-elder').hidden = !HH.isElder(st.profile.birthYear);
 
     var r = lb.me.result;
     var me;
@@ -1008,10 +1100,13 @@
     var p = st.profile;
     f.nickname.value = p.nickname;
     setRadio(f, 'sex', p.sex);
+    f.birthYear.value = p.birthYear ? p.birthYear - 1911 : '';
     f.heightCm.value = p.heightCm;
-    f.targetKg.value = p.targetKg;
+    f.targetKg.value = p.targetKg == null ? '' : p.targetKg;
+    f.refreshBodyFields();
     setSitePicker(f, p.village, p.siteId);
-    $('#profile-error').textContent = p.village ? '' : '請補選住在哪一里，才能看本里的排行';
+    $('#profile-error').textContent = !p.birthYear ? '請補填出生年，才能看到適合你的提醒'
+      : (p.village ? '' : '請補選住在哪一里，才能看本里的排行');
     $('#login-with').textContent = '目前用 LINE 登入';
   }
 
@@ -1036,6 +1131,7 @@
   function bindAccount() {
     var f = $('#profile-form');
     buildSitePicker(f);
+    bindBodyFields(f);
     f.onsubmit = async function (e) {
       e.preventDefault();
       var p = readProfileForm(f, $('#profile-error'), false);

@@ -107,6 +107,25 @@
       : { text: '正常範圍', level: 'ok' };
   }
 
+  // ---- 出生年與年齡（長者提醒用）----
+  var ELDER_AGE = 65;
+  var MIN_AGE = 10, MAX_AGE = 110;
+  // 民眾習慣填民國年：1～150 當民國年（+1911），1900 以上當西元年；不合理回傳 null
+  function parseBirthYear(v) {
+    var n = parseInt(String(v == null ? '' : v).trim(), 10);
+    if (isNaN(n)) return null;
+    if (n >= 1 && n <= 150) n += 1911;
+    var y = new Date().getFullYear();
+    return n >= y - MAX_AGE && n <= y - MIN_AGE ? n : null;
+  }
+  function ageOf(birthYear) {
+    return birthYear == null ? null : new Date().getFullYear() - birthYear;
+  }
+  function isElder(birthYear) {
+    var a = ageOf(birthYear);
+    return a != null && a >= ELDER_AGE;
+  }
+
   g.HH = {
     toStr: toStr, parse: parse, today: today, addDays: addDays, daysBetween: daysBetween,
     seasonOf: seasonOf, prevSeason: prevSeason, round1: round1, round2: round2,
@@ -114,6 +133,7 @@
     scoreMember: scoreMember, rankEntries: rankEntries,
     BMI_LOW: BMI_LOW, BMI_HIGH: BMI_HIGH,
     bmi: bmi, bmiCategory: bmiCategory, suggestedWeight: suggestedWeight,
-    fatThreshold: fatThreshold, fatStatus: fatStatus
+    fatThreshold: fatThreshold, fatStatus: fatStatus,
+    ELDER_AGE: ELDER_AGE, parseBirthYear: parseBirthYear, ageOf: ageOf, isElder: isElder
   };
 })(typeof window !== 'undefined' ? window : globalThis);

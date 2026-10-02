@@ -12,10 +12,12 @@
     try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* 無痕模式等情況存不了 */ }
   }
   function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
-  function clone(x) { return JSON.parse(JSON.stringify(x)); }
+  function clone(x) { return x === undefined ? x : JSON.parse(JSON.stringify(x)); } // undefined 不能直接轉，否則 Safari 會跳出看不懂的 JSON Parse error
   function byDate(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }
 
   var cache = null;      // 登入後一次讀回的個人資料，之後的寫入直接更新這份
+  var cachePromise = null; // 正在向後台讀取中的那一次（同時有好幾個地方要資料時，共用同一次讀取）
+  var cacheGen = 0;        // 每次清掉快取就加 1，讀到一半被清掉的舊結果不會寫回來
   var photoCache = {};
   var pending = 0;
 
@@ -44,7 +46,7 @@
     if (!json.ok) {
       if (json.code === 'AUTH') {
         store(TOKEN_KEY, null);
-        cache = null;
+        resetCache();
         if (api.onAuthLost) api.onAuthLost(json.error);
       }
       throw new Error(json.error || '發生錯誤');
@@ -64,13 +66,32 @@
   function afterLogin(res, provider) {
     store(TOKEN_KEY, res.token);
     store(PROVIDER_KEY, provider);
-    cache = null;
+    resetCache();
     return { needsProfile: res.needsProfile };
   }
 
+  function resetCache() {
+    cache = null;
+    cachePromise = null;
+    cacheGen++;
+  }
+
   async function ensureCache() {
-    if (!cache) cache = await call('bootstrap');
-    return cache;
+    if (cache) return cache;
+    if (!cachePromise) {
+      var gen = cacheGen;
+      var p = call('bootstrap').then(function (c) {
+        c = c || {};
+        // 缺少的欄位補成空的，避免後面程式拿到 undefined
+        var fresh = { profile: c.profile || null, body: c.body || [], meals: c.meals || [], water: c.water || [], bowel: c.bowel || [] };
+        if (gen === cacheGen) cache = fresh;
+        return fresh;
+      });
+      var clear = function () { if (cachePromise === p) cachePromise = null; };
+      p.then(clear, clear);
+      cachePromise = p;
+    }
+    return cachePromise;
   }
 
   var api = {
@@ -95,13 +116,19 @@
     logout: async function () {
       try { await call('logout'); } catch (e) { /* 登出時後台出錯也照樣清掉本機的登入狀態 */ }
       store(TOKEN_KEY, null);
-      cache = null;
+      resetCache();
       photoCache = {};
       return true;
     },
 
     saveProfile: async function (p, isNew) {
       var profile = await call('saveProfile', Object.assign({}, p, { agree: !!isNew }));
+      if (!profile) {
+        // 後台沒有把資料帶回來：資料多半已經存好了，重新讀一次確認
+        resetCache();
+        profile = (await ensureCache()).profile;
+        if (!profile) throw new Error('資料可能已經儲存，但讀取失敗，請重新整理網頁再試一次');
+      }
       if (cache) cache.profile = profile;
       return clone(profile);
     },
@@ -179,9 +206,15 @@
     deleteAccount: async function () {
       await call('deleteAccount');
       store(TOKEN_KEY, null);
-      cache = null;
+      resetCache();
       photoCache = {};
       return true;
+    },
+
+    // 重新向後台讀一次全部資料（畫面讀取失敗時用）
+    refresh: async function () {
+      resetCache();
+      await ensureCache();
     }
   };
 

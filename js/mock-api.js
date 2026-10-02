@@ -190,6 +190,7 @@
         sex: p.sex,
         heightCm: p.heightCm,
         targetKg: p.targetKg,
+        birthYear: p.birthYear || (s.profile && s.profile.birthYear) || null,
         village: p.village || '',
         siteId: p.siteId || '',
         agreedAt: (s.profile && s.profile.agreedAt) || Date.now()
@@ -198,6 +199,8 @@
       save(s);
       return delay(clone(s.profile));
     },
+
+    refresh: function () { return delay(true); },
 
     getBody: function () {
       var s = load();
