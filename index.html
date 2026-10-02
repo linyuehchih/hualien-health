@@ -212,6 +212,7 @@
       <!-- 我的變化 -->
       <section class="tab" id="tab-trend" hidden>
         <div class="card" id="bmi-card"></div>
+        <button type="button" class="btn block share-open" id="share-open">分享我的成果給家人朋友</button>
         <div class="seg seg-4 range-seg" id="range-seg">
           <label><input type="radio" name="range" value="7"><span>7 天</span></label>
           <label><input type="radio" name="range" value="30" checked><span>30 天</span></label>
@@ -352,6 +353,36 @@
     </form>
   </dialog>
 
+  <!-- 分享成果：勾選要放進圖片的項目 -->
+  <dialog id="share-dialog" class="modal share-dialog">
+    <div class="modal-body">
+      <h2>分享我的成果</h2>
+      <p class="hint">勾選要放進圖片的項目</p>
+      <div class="share-items" id="share-items"></div>
+      <div class="seg seg-4" id="share-range">
+        <label><input type="radio" name="share-range" value="7"><span>7 天</span></label>
+        <label><input type="radio" name="share-range" value="30" checked><span>30 天</span></label>
+        <label><input type="radio" name="share-range" value="90"><span>90 天</span></label>
+        <label><input type="radio" name="share-range" value="all"><span>全部</span></label>
+      </div>
+      <label class="check">
+        <input type="checkbox" id="share-numbers">
+        <span>圖上顯示實際數字（體重、體脂等）</span>
+      </label>
+      <p class="hint share-numbers-hint">預設不顯示，只畫曲線和變化量，收到圖的人看不到你的實際體重。</p>
+      <div class="share-preview" id="share-preview">
+        <img id="share-img" alt="成果圖預覽">
+        <p class="hint" id="share-empty" hidden>請至少勾選一項</p>
+      </div>
+      <p class="hint" id="share-tip"></p>
+      <div class="btn-row">
+        <button type="button" class="btn primary" id="share-send">分享</button>
+        <button type="button" class="btn" id="share-save">儲存圖片</button>
+      </div>
+      <button type="button" class="btn block" id="share-close">關閉</button>
+    </div>
+  </dialog>
+
   <!-- 看大張照片 -->
   <dialog id="viewer" class="viewer">
     <img id="viewer-img" alt="飲食照片">
@@ -368,6 +399,7 @@
   <script src="js/mock-api.js"></script>
   <script src="js/api.js"></script>
   <script src="js/charts.js"></script>
+  <script src="js/share.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

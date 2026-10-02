@@ -419,6 +419,19 @@ select:disabled { opacity: 0.55; }
 .score { font-weight: 700; font-variant-numeric: tabular-nums; }
 .score.neg { color: var(--bad); }
 
+/* ---------- 分享成果 ---------- */
+.share-open { margin: 0 0 14px; }
+.share-dialog { max-height: 92vh; overflow-y: auto; }
+.share-items { display: grid; gap: 4px; margin: 8px 0 12px; }
+.share-items .check { margin: 0; padding: 8px 0; align-items: center; border-bottom: 1px solid var(--line); }
+.share-items .check input { margin-top: 0; }
+.share-items .check.off { opacity: 0.5; }
+.share-items .check .note { color: var(--muted); font-size: 0.8rem; margin-left: 6px; }
+.share-numbers-hint { margin: 2px 0 10px 32px; }
+.share-preview { background: var(--bg); border-radius: 12px; padding: 8px; margin: 8px 0; min-height: 60px; text-align: center; }
+.share-preview img { width: 100%; height: auto; border-radius: 8px; display: block; margin: 0 auto; }
+.share-preview img[hidden] { display: none; }
+
 /* ---------- 對話框與提示 ---------- */
 .modal {
   border: 0; border-radius: 16px; padding: 0;

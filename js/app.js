@@ -164,6 +164,7 @@
     bindTrend();
     bindRank();
     bindAccount();
+    bindShare();
     $$('.tabbar button').forEach(function (b) {
       b.onclick = function () { switchTab(b.dataset.tab); };
     });
@@ -796,6 +797,191 @@
 
     $('#viewer-close').onclick = function () { $('#viewer').close(); };
     $('#viewer').onclick = function (e) { if (e.target === this) this.close(); };
+  }
+
+  // ---------- 分享成果（勾選項目 → 畫成圖片 → 用手機的分享選單傳出去）----------
+  var SHARE_URL = 'https://linyuehchih.github.io/hualien-health/';
+  var SHARE_ITEMS = [
+    { key: 'weightKg', name: '體重變化圖', metric: 0 },
+    { key: 'bodyFatPct', name: '體脂變化圖', metric: 1 },
+    { key: 'muscleKg', name: '肌肉量變化圖', metric: 2 },
+    { key: 'visceralFat', name: '內臟脂肪變化圖', metric: 3 },
+    { key: 'water', name: '飲水曲線' },
+    { key: 'rank', name: '本季排名與分數' }
+  ];
+  var SHARE_DEFAULT_ON = ['weightKg', 'bodyFatPct', 'rank']; // 預設只勾這幾項，其他讓民眾自己加
+  var share = { blob: null, url: null, seq: 0, timer: null, rank: null, checked: {} };
+
+  function shareFrom(range) { return range === 'all' ? null : HH.addDays(HH.today(), -(parseInt(range, 10) - 1)); }
+
+  function sharePoints(item, from) {
+    if (item.key === 'water') {
+      return st.water.filter(function (w) { return w.ml > 0 && (!from || w.date >= from); })
+        .map(function (w) { return { date: w.date, value: w.ml }; });
+    }
+    return st.body.filter(function (r) { return r[item.key] != null && (!from || r.date >= from); })
+      .map(function (r) { return { date: r.date, value: r[item.key] }; });
+  }
+
+  function shareAvailable(item, from) {
+    if (item.key === 'rank') return !!(share.rank && share.rank.qualified);
+    return sharePoints(item, from).length >= 2;
+  }
+
+  function buildShareItems() {
+    var range = radioValue($('#share-range'), 'share-range');
+    var from = shareFrom(range);
+    $('#share-items').innerHTML = SHARE_ITEMS.map(function (it) {
+      var ok = shareAvailable(it, from);
+      var note = ok ? '' : (it.key === 'rank' ? (share.rank ? '（還沒上榜）' : '（讀取中…）') : '（記錄還不夠）');
+      var on = ok && (share.checked[it.key] !== undefined ? share.checked[it.key] : SHARE_DEFAULT_ON.indexOf(it.key) >= 0);
+      return '<label class="check' + (ok ? '' : ' off') + '"><input type="checkbox" name="share-item" value="' + it.key + '"' +
+        (on ? ' checked' : '') + (ok ? '' : ' disabled') + '><span>' + it.name + '<span class="note">' + note + '</span></span></label>';
+    }).join('');
+    $$('#share-items input').forEach(function (b) {
+      b.onchange = function () { share.checked[b.value] = b.checked; scheduleShareRender(); };
+    });
+  }
+
+  function shareSpec() {
+    var range = radioValue($('#share-range'), 'share-range');
+    var from = shareFrom(range);
+    var showNumbers = $('#share-numbers').checked;
+    var picked = $$('#share-items input:checked').map(function (b) { return b.value; });
+    var sections = [];
+    SHARE_ITEMS.forEach(function (it) {
+      if (picked.indexOf(it.key) < 0) return;
+      if (it.key === 'rank') {
+        var r = share.rank;
+        if (!r || !r.qualified) return;
+        sections.push({ type: 'rank', title: r.seasonLabel,
+          line1: '第 ' + r.rank + ' 名 · ' + r.score.toFixed(2) + ' 分',
+          line2: '體脂減少 ' + r.fatPct.toFixed(2) + '%｜體重減少 ' + r.weightPct.toFixed(2) + '%' });
+        return;
+      }
+      var pts = sharePoints(it, from);
+      if (pts.length < 2) return;
+      if (it.key === 'water') {
+        var avg = pts.reduce(function (s, p) { return s + p.value; }, 0) / pts.length;
+        sections.push({ type: 'chart', title: '飲水', pts: pts, decimals: 0, tone: 'sea',
+          summary: showNumbers ? rangeWord(range) + '平均每天 ' + fmtNum(Math.round(avg / 10) * 10) + ' c.c.' : rangeWord(range) + '記錄了 ' + pts.length + ' 天' });
+        return;
+      }
+      var m = METRICS[it.metric];
+      var diff = pts[pts.length - 1].value - pts[0].value;
+      var unit = m.unit === '%' ? '%' : ' ' + m.unit;
+      var summary = rangeWord(range) + m.name + ' ' + signed(diff, m.decimals) + unit;
+      if (showNumbers) summary += '（目前 ' + pts[pts.length - 1].value.toFixed(m.decimals) + unit + '）';
+      sections.push({ type: 'chart', title: m.name, pts: pts, decimals: m.decimals, summary: summary });
+    });
+    var d = HH.parse(HH.today());
+    return {
+      nickname: st.profile.nickname,
+      periodLabel: range === 'all' ? '記錄以來' : '近 ' + range + ' 天',
+      dateText: (d.getMonth() + 1) + '/' + d.getDate() + ' 製作',
+      showNumbers: showNumbers,
+      sections: sections,
+      url: SHARE_URL.replace(/^https?:\/\//, '').replace(/\/$/, '')
+    };
+  }
+
+  function scheduleShareRender() {
+    clearTimeout(share.timer);
+    share.timer = setTimeout(renderShare, 120);
+  }
+
+  async function renderShare() {
+    var seq = ++share.seq;
+    var spec = shareSpec();
+    var has = spec.sections.length > 0;
+    var anyAvailable = $$('#share-items input:not(:disabled)').length > 0;
+    $('#share-empty').textContent = anyAvailable ? '請至少勾選一項' : '記錄還不夠，多記錄幾天就能分享囉';
+    $('#share-empty').hidden = has;
+    $('#share-img').hidden = !has;
+    $('#share-send').disabled = !has;
+    $('#share-save').disabled = !has;
+    if (!has) { share.blob = null; return; }
+    try {
+      var blob = await HHShare.render(spec);
+      if (seq !== share.seq) return; // 已經又改了勾選，這張作廢
+      share.blob = blob;
+      if (share.url) URL.revokeObjectURL(share.url);
+      share.url = URL.createObjectURL(blob);
+      $('#share-img').src = share.url;
+    } catch (e) {
+      toast('圖片產生失敗，請再試一次');
+    }
+  }
+
+  function saveShareImage() {
+    if (!share.blob) return;
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(share.blob);
+    a.download = 'hualien-gohealth-' + HH.today().replace(/-/g, '') + '.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
+
+  async function sendShare() {
+    if (!share.blob) return;
+    var file = new File([share.blob], 'hualien-gohealth.png', { type: 'image/png' });
+    var data = { files: [file], text: '我在「花蓮共好健康生活」記錄健康，一起來！\n' + SHARE_URL + '?openExternalBrowser=1' };
+    if (navigator.canShare && navigator.canShare(data)) {
+      try {
+        await navigator.share(data);
+      } catch (e) {
+        if (e && e.name !== 'AbortError') toast('分享沒有成功，請改按「儲存圖片」');
+      }
+    } else {
+      saveShareImage();
+      toast('這個瀏覽器不能直接分享，已儲存圖片，再到 LINE 傳給家人');
+    }
+  }
+
+  async function openShare() {
+    var cur = radioValue($('#range-seg'), 'range');
+    setRadio($('#share-range'), 'share-range', cur);
+    $('#share-numbers').checked = false;
+    share.rank = null;
+    share.checked = {};
+    $('#share-tip').textContent = /Line\//.test(navigator.userAgent)
+      ? '你現在在 LINE 裡開啟，分享選單可能不能用；可以按「儲存圖片」，再到 LINE 傳給家人。'
+      : '按「分享」後選 LINE 就能傳出去；也可以長按上面的圖片儲存。';
+    buildShareItems();
+    $('#share-dialog').showModal();
+    renderShare();
+    // 排名要向後台讀，讀好後再更新勾選項目
+    try {
+      var lb = await api.getLeaderboard('all');
+      var r = lb.me && lb.me.result;
+      share.rank = r && r.qualified
+        ? { qualified: true, rank: lb.me.rank, score: r.score, fatPct: r.fatPct, weightPct: r.weightPct, seasonLabel: lb.season.label }
+        : { qualified: false };
+    } catch (e) {
+      share.rank = { qualified: false };
+    }
+    if ($('#share-dialog').open) { buildShareItems(); renderShare(); }
+  }
+
+  // 關閉時釋放圖片佔的記憶體，並讓還在畫的那張作廢（重複呼叫也沒關係）
+  function cleanupShare() {
+    clearTimeout(share.timer);
+    share.seq++;
+    if (share.url) { URL.revokeObjectURL(share.url); share.url = null; }
+    share.blob = null;
+    $('#share-img').removeAttribute('src');
+  }
+
+  function bindShare() {
+    $('#share-open').onclick = openShare;
+    $('#share-close').onclick = function () { cleanupShare(); $('#share-dialog').close(); };
+    $('#share-dialog').addEventListener('close', cleanupShare); // 按 Esc 等其他方式關閉時
+    $('#share-range').onchange = function () { buildShareItems(); scheduleShareRender(); };
+    $('#share-numbers').onchange = scheduleShareRender;
+    $('#share-send').onclick = sendShare;
+    $('#share-save').onclick = saveShareImage;
   }
 
   // ---------- 我的變化 ----------
