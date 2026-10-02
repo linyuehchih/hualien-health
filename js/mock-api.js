@@ -488,10 +488,10 @@
       return delay(clone(load().meals));
     },
 
-    // m.photos：壓縮好的照片 [Blob]，最多 3 張
+    // m.photos：壓縮好的照片 [Blob]，最多 1 張
     addMeal: function (m) {
       var s = load();
-      var photos = (m.photos || []).slice(0, 3);
+      var photos = (m.photos || []).slice(0, 1);
       var photoIds = photos.map(function (blob, i) {
         var pid = 'p' + Date.now() + '_' + i + '_' + Math.floor(Math.random() * 1000);
         photoStore[pid] = URL.createObjectURL(blob);
