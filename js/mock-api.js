@@ -163,6 +163,76 @@
     return date <= today && date >= HH.addDays(today, -HH.EDIT_WINDOW_DAYS);
   }
 
+
+  // ---- 家庭群組的小工具 ----
+  var GROUP_MAX = 10, GROUP_PER_MEMBER = 3, DEMO_CODE = 'DEMO12';
+  function randomCode() {
+    var chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789', out = '';
+    for (var i = 0; i < 6; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
+    return out;
+  }
+  function findGroup(s, id) {
+    return (s.groups || []).find(function (g) { return g.id === id && g.members.some(function (m) { return m.id === 'me'; }); }) || null;
+  }
+  function myGroupCount(s, memberId) {
+    return (s.groups || []).filter(function (g) { return g.members.some(function (m) { return m.id === memberId; }); }).length;
+  }
+  function isMyManaged(s, id) { return (s.managed || []).some(function (m) { return m.id === id; }); }
+
+  // 假成員的資料（過去 60 天，固定亂數，每次都一樣）
+  function fakeSeries(i) {
+    var r = rng(900 + i), today = HH.today(), out = { body: [], water: [] };
+    var w0 = 55 + Math.round(r() * 30), f0 = 22 + Math.round(r() * 10), slope = -(r() * 4);
+    for (var d = 60; d >= 1; d--) {
+      if (r() < 0.15) continue;
+      var t = (60 - d) / 60;
+      out.body.push({
+        date: HH.addDays(today, -d), weightKg: HH.round1(w0 + slope * t + (r() - 0.5) * 0.6),
+        bodyFatPct: HH.round1(f0 + slope * 0.5 * t + (r() - 0.5) * 0.5),
+        muscleKg: HH.round1(28 + r() * 6 + t * 0.4), visceralFat: HH.round1(9 + slope * 0.2 * t + (r() - 0.5) * 0.3)
+      });
+      out.water.push({ date: HH.addDays(today, -d), ml: 1000 + Math.round(r() * 12) * 100 });
+    }
+    return out;
+  }
+
+  // 群組成員的名字與資料：'me'＝自己，'f0'～＝假成員，其他＝我代管的長輩
+  function memberInfo(s, m) {
+    if (m.id === 'me') return { nickname: s.profile ? s.profile.nickname : '我', body: s.body, water: s.water, managedByMe: false };
+    if (m.id.charAt(0) === 'f') {
+      var i = Number(m.id.slice(1)), fs = fakeSeries(i);
+      return { nickname: OTHER_NAMES[i % OTHER_NAMES.length], body: fs.body, water: fs.water, managedByMe: false };
+    }
+    var mg = (s.managed || []).find(function (x) { return x.id === m.id; });
+    return mg ? { nickname: mg.profile.nickname, body: mg.body, water: mg.water, managedByMe: true } : { nickname: '?', body: [], water: [], managedByMe: false };
+  }
+
+  function groupSummary(s, g) {
+    return {
+      id: g.id, name: g.name, max: GROUP_MAX, count: g.members.length, isCreator: g.creator === 'me',
+      inviteCode: g.creator === 'me' ? g.code : null,
+      members: g.members.map(function (m) {
+        var info = memberInfo(s, m);
+        return { memberId: m.id, nickname: info.nickname, isMe: m.id === 'me', managedByMe: !!info.managedByMe, isCreator: g.creator === m.id, showNumbers: !!m.show };
+      })
+    };
+  }
+
+  // 沒公開實際數字的人：只傳相對高低（0～1）和變化量（和真正後台的規則一樣）
+  function shapeSeries(key, pts, show) {
+    var out = { key: key, n: pts.length };
+    if (pts.length < 2) {
+      out.pts = pts.map(function (p) { return { date: p.date, value: show ? p.value : 0.5 }; });
+      return out;
+    }
+    var vals = pts.map(function (p) { return p.value; });
+    var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+    if (key !== 'water') out.change = Math.round((vals[vals.length - 1] - vals[0]) * 10) / 10;
+    if (show) { out.pts = pts; out.current = vals[vals.length - 1]; }
+    else out.pts = pts.map(function (p) { return { date: p.date, value: hi > lo ? Math.round((p.value - lo) / (hi - lo) * 1000) / 1000 : 0.5 }; });
+    return out;
+  }
+
   var api = {
     isDemo: true,
 
@@ -242,6 +312,146 @@
     },
 
     getActive: function () { return activeId; },
+
+    // ---- 家庭群組（示範資料）：其他成員是假的；邀請碼 DEMO12 可以加入一個示範群組 ----
+    listGroups: function () {
+      var s = load();
+      // 只列出「我還在裡面」的群組（和真正後台一樣）
+      var mine = (s.groups || []).filter(function (g) { return g.members.some(function (m) { return m.id === 'me'; }); });
+      return delay(mine.map(function (g) { return groupSummary(s, g); }));
+    },
+
+    createGroup: function (name) {
+      name = String(name || '').trim().slice(0, 20);
+      if (!name) return fail('請幫群組取個名字');
+      var s = load();
+      s.groups = s.groups || [];
+      if (myGroupCount(s, 'me') >= GROUP_PER_MEMBER) return fail('每個人最多只能加入 ' + GROUP_PER_MEMBER + ' 個群組');
+      var g = { id: 'g' + Date.now(), name: name, code: randomCode(), creator: 'me', members: [{ id: 'me', show: false }] };
+      s.groups.push(g);
+      save(s);
+      return delay(groupSummary(s, g));
+    },
+
+    joinGroup: function (code) {
+      code = String(code || '').trim().toUpperCase();
+      if (!code) return fail('請輸入邀請碼');
+      var s = load();
+      s.groups = s.groups || [];
+      var g = s.groups.find(function (x) { return x.code === code; });
+      if (!g && code === DEMO_CODE) {
+        g = { id: 'gdemo', name: '示範家人群組', code: DEMO_CODE, creator: 'f0', members: [{ id: 'f0', show: false }, { id: 'f1', show: true }, { id: 'f2', show: false }] };
+        s.groups.push(g);
+      }
+      if (!g) return fail('邀請碼不正確，或已經失效');
+      if (g.members.some(function (m) { return m.id === 'me'; })) return fail('你已經在這個群組裡了');
+      if (g.members.length >= GROUP_MAX) return fail('這個群組已經滿 ' + GROUP_MAX + ' 人了');
+      if (myGroupCount(s, 'me') >= GROUP_PER_MEMBER) return fail('每個人最多只能加入 ' + GROUP_PER_MEMBER + ' 個群組');
+      g.members.push({ id: 'me', show: false });
+      save(s);
+      return delay(groupSummary(s, g));
+    },
+
+    setGroupShare: function (groupId, memberId, show) {
+      var s = load(), g = findGroup(s, groupId);
+      if (!g) return fail('你不在這個群組裡，請重新整理網頁');
+      memberId = memberId || 'me';
+      var m = g.members.find(function (x) { return x.id === memberId; });
+      if (!m) return fail('這位成員不在這個群組裡');
+      if (memberId !== 'me' && !isMyManaged(s, memberId)) return fail('沒有權限');
+      m.show = !!show;
+      save(s);
+      return delay(groupSummary(s, g));
+    },
+
+    addManagedToGroup: function (groupId, memberId) {
+      var s = load(), g = findGroup(s, groupId);
+      if (!g) return fail('你不在這個群組裡，請重新整理網頁');
+      if (!isMyManaged(s, memberId)) return fail('找不到這位代管的成員，請重新整理網頁');
+      if (g.members.some(function (x) { return x.id === memberId; })) return fail('已經在這個群組裡了');
+      if (g.members.length >= GROUP_MAX) return fail('這個群組已經滿 ' + GROUP_MAX + ' 人了');
+      if (myGroupCount(s, memberId) >= GROUP_PER_MEMBER) return fail('這位長輩最多只能加入 ' + GROUP_PER_MEMBER + ' 個群組');
+      g.members.push({ id: memberId, show: false });
+      save(s);
+      return delay(groupSummary(s, g));
+    },
+
+    removeFromGroup: function (groupId, memberId) {
+      var s = load(), g = findGroup(s, groupId);
+      if (!g) return fail('你不在這個群組裡，請重新整理網頁');
+      var target = memberId || 'me';
+      if (target !== 'me' && !isMyManaged(s, target) && g.creator !== 'me') return fail('只有群組建立者可以移除其他成員');
+      if (!g.members.some(function (x) { return x.id === target; })) return fail('這位成員不在這個群組裡');
+      // LINE 會員（我自己）離開時，我代管的長輩一起離開
+      var ids = target === 'me' ? ['me'].concat((s.managed || []).map(function (x) { return x.id; })) : [target];
+      g.members = g.members.filter(function (x) { return ids.indexOf(x.id) < 0; });
+      if (ids.indexOf(g.creator) >= 0) {
+        var heir = g.members.find(function (x) { return x.id === 'me' || x.id.charAt(0) === 'f'; });
+        if (heir) g.creator = heir.id; else g.members = [];
+      }
+      if (!g.members.length) s.groups = s.groups.filter(function (x) { return x !== g; });
+      save(s);
+      return delay({ left: true, groupGone: s.groups.indexOf(g) < 0 });
+    },
+
+    disbandGroup: function (groupId) {
+      var s = load(), g = findGroup(s, groupId);
+      if (!g || g.creator !== 'me') return fail('只有群組建立者可以解散群組');
+      s.groups = s.groups.filter(function (x) { return x !== g; });
+      save(s);
+      return delay({ disbanded: true });
+    },
+
+    regenInvite: function (groupId) {
+      var s = load(), g = findGroup(s, groupId);
+      if (!g || g.creator !== 'me') return fail('只有群組建立者可以重新產生邀請碼');
+      g.code = randomCode();
+      save(s);
+      return delay(groupSummary(s, g));
+    },
+
+    groupDetail: function (groupId, memberId, range) {
+      var s = load(), g = findGroup(s, groupId);
+      if (!g) return fail('你不在這個群組裡，請重新整理網頁');
+      var m = g.members.find(function (x) { return x.id === memberId; });
+      if (!m) return fail('這位成員不在這個群組裡');
+      var info = memberInfo(s, m);
+      var mine = m.id === 'me' || info.managedByMe;
+      var show = mine || !!m.show;
+      range = ['7', '30', '90', 'all'].indexOf(String(range)) >= 0 ? String(range) : '30';
+      var from = range === 'all' ? null : HH.addDays(HH.today(), -(parseInt(range, 10) - 1));
+      var metrics = ['weightKg', 'bodyFatPct', 'muscleKg', 'visceralFat'].map(function (key) {
+        var pts = info.body.filter(function (r) { return r[key] != null && (!from || r.date >= from); })
+          .map(function (r) { return { date: r.date, value: r[key] }; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+        return shapeSeries(key, pts, show);
+      });
+      var water = info.water.filter(function (w) { return w.ml > 0 && (!from || w.date >= from); })
+        .map(function (w) { return { date: w.date, value: w.ml }; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+      metrics.push(shapeSeries('water', water, show));
+      return delay({ memberId: m.id, nickname: info.nickname, showNumbers: show, mine: mine, range: range, metrics: metrics });
+    },
+
+    groupBoard: function (groupId) {
+      var s = load(), g = findGroup(s, groupId);
+      if (!g) return fail('你不在這個群組裡，請重新整理網頁');
+      var today = HH.today(), season = HH.seasonOf(today), note = '';
+      if (HH.daysBetween(season.start, today) < HH.MIN_SPAN_DAYS) {
+        season = HH.prevSeason(season);
+        note = '本季剛開始，示範畫面先用上一季的資料展示';
+      }
+      var others = othersFor(season, today);
+      var entries = g.members.map(function (m) {
+        var info = memberInfo(s, m);
+        var recs = m.id.charAt(0) === 'f' ? others[Number(m.id.slice(1)) % others.length].records : info.body;
+        return { id: m.id, nickname: info.nickname, hidden: false, isMe: m.id === 'me', mine: !!info.managedByMe, result: HH.scoreMember(recs, season, today) };
+      });
+      var ranked = HH.rankEntries(entries);
+      return delay({
+        season: season, name: g.name, note: note, notRanked: entries.length - ranked.length,
+        entries: ranked.map(function (e) { return { rank: e.rank, nickname: e.nickname, score: e.result.score, isMe: e.isMe, mine: e.mine }; })
+      });
+    },
+
 
     getBody: function () {
       var s = load();
@@ -382,7 +592,10 @@
     deleteAccount: function () {
       if (activeId) {
         var s = load();
-        s.managed = (s.managed || []).filter(function (m) { return m.id !== activeId; });
+        var gone = activeId;
+        s.managed = (s.managed || []).filter(function (m) { return m.id !== gone; });
+        (s.groups || []).forEach(function (g) { g.members = g.members.filter(function (m) { return m.id !== gone; }); });
+        s.groups = (s.groups || []).filter(function (g) { return g.members.length; });
         activeId = null;
         save(s);
         return delay(true);

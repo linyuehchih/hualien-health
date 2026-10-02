@@ -25,7 +25,11 @@
   var activeAs = null;     // 目前代管中的成員編號；null＝自己
   var stash = {};          // 切換成員時，把各人已讀回的資料先收起來 {成員編號或 'self': cache}
   var managedList = [];    // 我代管的成員 [{id, nickname}]
-  var NO_AS = { createManaged: true, logout: true, loginLine: true }; // 這些動作一定要用自己的身分
+  // 只有這些動作可以「代替長輩」執行（要和後台的 MANAGED_OK 一樣）；其他動作（建立長輩、登出、家庭群組…）一定用自己的身分
+  var AS_OK = {
+    bootstrap: true, saveProfile: true, saveBody: true, addMeal: true, updateMeal: true, deleteMeal: true,
+    getPhoto: true, setWater: true, addBowel: true, deleteBowel: true, leaderboard: true, deleteAccount: true
+  };
   function keyOf(id) { return id || 'self'; }
 
   function busy(delta) {
@@ -41,7 +45,7 @@
         method: 'POST',
         // 用 text/plain 送，瀏覽器才不會多發一次預檢請求（Apps Script 不支援）
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: action, data: data || {}, token: read(TOKEN_KEY), as: NO_AS[action] ? undefined : (activeAs || undefined) })
+        body: JSON.stringify({ action: action, data: data || {}, token: read(TOKEN_KEY), as: AS_OK[action] ? (activeAs || undefined) : undefined })
       });
     } catch (e) {
       busy(-1);
@@ -61,7 +65,9 @@
         forgetManaged(activeAs);
         if (api.onManagedLost) api.onManagedLost(json.error);
       }
-      throw new Error(json.error || '發生錯誤');
+      var err = new Error(json.error || '發生錯誤');
+      err.code = json.code || '';
+      throw err;
     }
     return json.data;
   }
@@ -196,6 +202,18 @@
     },
 
     getActive: function () { return activeAs; },
+
+    // ---- 家庭群組（一律用自己的身分，不會帶 as）----
+    listGroups: function () { return call('listGroups'); },
+    createGroup: function (name) { return call('createGroup', { name: name }); },
+    joinGroup: function (code) { return call('joinGroup', { code: code }); },
+    setGroupShare: function (groupId, memberId, show) { return call('setGroupShare', { groupId: groupId, memberId: memberId, show: !!show }); },
+    addManagedToGroup: function (groupId, memberId) { return call('addManagedToGroup', { groupId: groupId, memberId: memberId }); },
+    removeFromGroup: function (groupId, memberId) { return call('removeFromGroup', { groupId: groupId, memberId: memberId }); },
+    disbandGroup: function (groupId) { return call('disbandGroup', { groupId: groupId }); },
+    regenInvite: function (groupId) { return call('regenInvite', { groupId: groupId }); },
+    groupDetail: function (groupId, memberId, range) { return call('groupDetail', { groupId: groupId, memberId: memberId, range: range }); },
+    groupBoard: function (groupId) { return call('groupBoard', { groupId: groupId }); },
 
     getBody: async function () { return clone((await ensureCache()).body).sort(byDate); },
 

@@ -256,6 +256,51 @@
         </div>
       </section>
 
+      <!-- 家人群組 -->
+      <section class="tab" id="tab-groups" hidden>
+        <p class="rank-note" id="groups-acting-hint" hidden>群組用的是你自己的身分，不是目前代管的長輩。</p>
+        <p class="hint" id="groups-loading" hidden>讀取中…</p>
+
+        <div class="card" id="groups-intro" hidden>
+          <h2>家人群組</h2>
+          <p>跟家人組成一個群組，互相看到彼此的<strong>趨勢圖</strong>，也能在群組裡比一比誰進步比較多。</p>
+          <p class="hint">・預設只看得到起伏和變化量，看不到實際的體重、體脂，每個人可以自己選擇要不要公開<br>
+            ・沒有 LINE 的長輩，由你代管的帳號一起加入<br>
+            ・飲食、照片、排便不會分享給群組</p>
+        </div>
+
+        <div id="groups-main" hidden>
+          <div class="chips" id="group-picker" hidden></div>
+          <div class="card" id="group-head"></div>
+          <div class="seg seg-3" id="group-view">
+            <label><input type="radio" name="gview" value="board" checked><span>排行</span></label>
+            <label><input type="radio" name="gview" value="trend"><span>趨勢圖</span></label>
+            <label><input type="radio" name="gview" value="members"><span>成員</span></label>
+          </div>
+          <div id="gpane-board"></div>
+          <div id="gpane-trend" hidden>
+            <div class="chips" id="gtrend-members"></div>
+            <div class="seg seg-4 range-seg" id="gtrend-range">
+              <label><input type="radio" name="grange" value="7"><span>7 天</span></label>
+              <label><input type="radio" name="grange" value="30" checked><span>30 天</span></label>
+              <label><input type="radio" name="grange" value="90"><span>90 天</span></label>
+              <label><input type="radio" name="grange" value="all"><span>全部</span></label>
+            </div>
+            <p class="rank-note" id="gtrend-note" hidden></p>
+            <div id="gtrend-charts"></div>
+          </div>
+          <div id="gpane-members" hidden></div>
+        </div>
+
+        <div class="card" id="groups-actions">
+          <div class="btn-row">
+            <button type="button" class="btn primary" id="g-create">建立家庭群組</button>
+            <button type="button" class="btn" id="g-join">邀請碼加入</button>
+          </div>
+          <p class="hint" id="groups-limit"></p>
+        </div>
+      </section>
+
       <!-- 我的帳號 -->
       <section class="tab" id="tab-account" hidden>
         <form id="profile-form" class="card" novalidate>
@@ -330,6 +375,9 @@
       </button>
       <button type="button" data-tab="rank">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg><span>競賽排行</span>
+      </button>
+      <button type="button" data-tab="groups">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM21 20v-1a3.5 3.5 0 0 0-2.5-3.35M16 4.2a3.5 3.5 0 0 1 0 6.6"/></svg><span>家人群組</span>
       </button>
       <button type="button" data-tab="account">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>我的帳號</span>

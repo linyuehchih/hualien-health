@@ -233,6 +233,26 @@ select:disabled { opacity: 0.55; }
 }
 .back-btn { font: inherit; font-weight: 600; background: none; border: 0; color: var(--primary-ink); padding: 6px 4px; cursor: pointer; }
 
+/* ---------- 家人群組 ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.chip {
+  font: inherit; font-size: 0.95rem; min-height: 40px; padding: 4px 14px; border-radius: 999px;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer;
+}
+.chip.on { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); font-weight: 600; }
+.group-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.group-title h2 { margin-bottom: 6px; }
+.invite { font-size: 1.1rem; margin: 4px 0; }
+.invite strong { font-size: 1.7rem; letter-spacing: 0.18em; color: var(--primary); font-variant-numeric: tabular-nums; }
+.me-mark.mine { background: var(--sea); }
+.me-mark.creator { background: var(--muted); }
+.gm-row { padding: 10px 0; border-top: 1px solid var(--line); display: grid; gap: 6px; }
+.gm-name { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.gm-name .nick { font-weight: 600; }
+.gm-row .check.small { font-size: 0.85rem; margin: 0; }
+.gm-row .link-btn { justify-self: start; padding-left: 0; }
+#groups-actions { margin-top: 6px; }
+
 /* ---------- 代管：幫沒有 LINE 的長輩記錄 ---------- */
 .who-select {
   font: inherit; font-size: 0.85rem; min-height: 36px; max-width: 46vw; padding: 4px 8px;
@@ -274,12 +294,12 @@ select:disabled { opacity: 0.55; }
 
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
-  display: grid; grid-template-columns: repeat(5, 1fr);
+  display: grid; grid-template-columns: repeat(6, 1fr);
   background: var(--surface); border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom);
 }
 .tabbar button {
-  font: inherit; font-size: 0.72rem; color: var(--muted);
+  font: inherit; font-size: 0.68rem; color: var(--muted); padding: 0 2px;
   background: none; border: 0; min-height: var(--tabbar-h);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   cursor: pointer;

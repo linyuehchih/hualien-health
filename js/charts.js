@@ -9,12 +9,12 @@
   function md(dateStr) { var d = HH.parse(dateStr); return (d.getMonth() + 1) + '/' + d.getDate(); }
 
   // points: [{date, value}]（日期由舊到新）
-  // o: {label, decimals, band: [下限, 上限] 或 null, target: 數字或 null}
+  // o: {label, decimals, band: [下限, 上限] 或 null, target: 數字或 null, hideNumbers: true 就不畫座標上的數字}
   function lineChart(points, o) {
     if (points.length === 0) return '<p class="chart-empty">還沒有紀錄</p>';
     if (points.length === 1) return '<p class="chart-empty">再多記幾天就能看到曲線囉</p>';
 
-    var W = 340, H = 180, L = 42, R = 14, T = 14, B = 26;
+    var W = 340, H = 180, L = o.hideNumbers ? 12 : 42, R = 14, T = 14, B = 26;
     var vals = points.map(function (p) { return p.value; });
     var lo = Math.min.apply(null, vals);
     var hi = Math.max.apply(null, vals);
@@ -70,10 +70,10 @@
       var gv = lo + (hi - lo) * k / 3;
       var gy = y(gv);
       s.push('<line class="c-grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + gy.toFixed(1) + '" y2="' + gy.toFixed(1) + '"/>');
-      s.push('<text class="c-axis" x="' + (L - 6) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="end">' + fmt(gv, o.decimals) + '</text>');
+      if (!o.hideNumbers) s.push('<text class="c-axis" x="' + (L - 6) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="end">' + fmt(gv, o.decimals) + '</text>');
     }
 
-    if (o.target != null) {
+    if (o.target != null && !o.hideNumbers) {
       var ty = y(o.target).toFixed(1);
       s.push('<line class="c-target" x1="' + L + '" x2="' + (W - R) + '" y1="' + ty + '" y2="' + ty + '"/>');
       s.push('<text class="c-target-label" x="' + (L + 4) + '" y="' + (ty - 5) + '">' + (o.targetLabel || '目標') + ' ' + fmt(o.target, o.decimals) + '</text>');

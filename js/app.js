@@ -166,6 +166,7 @@
     bindAccount();
     bindShare();
     bindManaged();
+    bindGroups();
     $$('.tabbar button').forEach(function (b) {
       b.onclick = function () { switchTab(b.dataset.tab); };
     });
@@ -609,6 +610,7 @@
     if (name === 'diary') { diaryLimit = DIARY_PAGE; renderDiary(); }
     if (name === 'rank') renderRank();
     if (name === 'account') fillAccount();
+    if (name === 'groups') loadGroups();
     window.scrollTo(0, 0);
   }
 
@@ -914,6 +916,280 @@
 
     $('#viewer-close').onclick = function () { $('#viewer').close(); };
     $('#viewer').onclick = function (e) { if (e.target === this) this.close(); };
+  }
+
+  // ---------- 家人群組 ----------
+  // 群組一律用「自己」的身分（不是目前代管的長輩）。成員可以是 LINE 會員，也可以是他代管的長輩。
+  // 沒公開實際數字的人，後台只傳相對高低和變化量，圖上不畫座標數字。
+  var gs = { list: [], id: null, view: 'board', member: null, range: '30', seq: 0, paneSeq: 0 };
+  var GROUP_METRICS = {
+    weightKg: { name: '體重', unit: '公斤', decimals: 1 },
+    bodyFatPct: { name: '體脂', unit: '%', decimals: 1 },
+    muscleKg: { name: '肌肉量', unit: '公斤', decimals: 1 },
+    visceralFat: { name: '內臟脂肪', unit: '%', decimals: 1 },
+    water: { name: '飲水', unit: 'c.c.', decimals: 0 }
+  };
+
+  function curGroup() { return gs.list.find(function (g) { return g.id === gs.id; }) || null; }
+
+  async function loadGroups() {
+    var seq = ++gs.seq;
+    $('#groups-loading').hidden = false;
+    var list = gs.list;
+    try { list = await api.listGroups(); } catch (e) { toast(friendlyError(e)); }
+    if (seq !== gs.seq) return;
+    $('#groups-loading').hidden = true;
+    gs.list = list;
+    if (!curGroup()) { gs.id = list.length ? list[0].id : null; gs.member = null; }
+    renderGroups();
+  }
+
+  // 後台說「你不在這個群組裡」之類的錯誤：重新讀一次清單，畫面才會跟實際一致
+  function groupError(e) {
+    toast(friendlyError(e));
+    if (e && e.code === 'GROUP') loadGroups();
+  }
+
+  function renderGroups() {
+    var g = curGroup();
+    $('#groups-acting-hint').hidden = !(api.getActive && api.getActive());
+    $('#groups-intro').hidden = gs.list.length > 0;
+    $('#groups-main').hidden = !g;
+    $('#g-create').disabled = gs.list.length >= 3;
+    $('#groups-limit').textContent = gs.list.length >= 3 ? '你已經加入 3 個群組了（每個人最多 3 個）' : '一個群組最多 10 人（含長輩），每個人最多加入 3 個群組';
+    if (!g) return;
+
+    var picker = $('#group-picker');
+    picker.hidden = gs.list.length < 2;
+    picker.innerHTML = gs.list.map(function (x) {
+      return '<button type="button" class="chip' + (x.id === gs.id ? ' on' : '') + '" data-gid="' + esc(x.id) + '">' + esc(x.name) + '</button>';
+    }).join('');
+
+    var head = '<div class="group-title"><h2>' + esc(g.name) + '</h2><span class="sub">' + g.count + '／' + g.max + ' 人</span></div>';
+    if (g.inviteCode) {
+      head += '<p class="invite">邀請碼　<strong>' + esc(g.inviteCode) + '</strong></p>' +
+        '<p class="hint">把邀請碼傳給有 LINE 的家人，他登入後到「家人群組」輸入就能加入。</p>' +
+        '<div class="btn-row"><button type="button" class="btn primary" id="g-invite-share">分享邀請</button>' +
+        '<button type="button" class="btn" id="g-invite-regen">重新產生邀請碼</button></div>';
+    }
+    head += '<div class="btn-row"><button type="button" class="btn danger-outline" id="g-leave">退出群組</button>' +
+      (g.isCreator ? '<button type="button" class="btn danger-outline" id="g-disband">解散群組</button>' : '') + '</div>';
+    $('#group-head').innerHTML = head;
+
+    setRadio($('#group-view'), 'gview', gs.view);
+    ['board', 'trend', 'members'].forEach(function (v) { $('#gpane-' + v).hidden = v !== gs.view; });
+    if (gs.view === 'board') renderGroupBoard();
+    else if (gs.view === 'trend') renderGroupTrend();
+    else renderGroupMembers();
+  }
+
+  async function renderGroupBoard() {
+    var g = curGroup(), box = $('#gpane-board');
+    var seq = ++gs.paneSeq;
+    box.innerHTML = '<div class="card"><p class="hint">讀取中…</p></div>';
+    var lb;
+    try { lb = await api.groupBoard(g.id); } catch (e) { box.innerHTML = ''; groupError(e); return; }
+    if (seq !== gs.paneSeq) return;
+    var rows = lb.entries.map(function (e) {
+      return '<li class="board-row' + (e.isMe ? ' is-me' : '') + '">' +
+        '<span class="rank rank-' + (e.rank <= 3 ? e.rank : 'n') + '">' + e.rank + '</span>' +
+        '<span class="nick">' + esc(e.nickname) + (e.isMe ? '<span class="me-mark">你</span>' : '') + (e.mine ? '<span class="me-mark mine">我代管</span>' : '') + '</span>' +
+        '<span class="score' + (e.score < 0 ? ' neg' : '') + '">' + e.score.toFixed(2) + '</span></li>';
+    }).join('');
+    box.innerHTML = '<div class="card"><h2>群組排行</h2><p class="sub">' + esc(lb.season.label) + '</p>' +
+      (lb.note ? '<p class="rank-note">' + esc(lb.note) + '</p>' : '') +
+      '<p class="hint">只顯示綽號和分數，不會顯示任何人的體重。算法和總排行榜一樣。</p>' +
+      (rows ? '<ol class="board">' + rows + '</ol>'
+        : '<p class="hint" style="margin-top:10px">還沒有人上榜。每位成員本季至少記錄兩筆（體重和體脂都要有），而且第一筆到最新一筆相隔 14 天以上，就會出現在這裡。</p>') +
+      (lb.notRanked ? '<p class="hint" style="margin-top:8px">還有 ' + lb.notRanked + ' 位成員還沒上榜</p>' : '') + '</div>';
+  }
+
+  async function renderGroupTrend() {
+    var g = curGroup();
+    if (!gs.member || !g.members.some(function (m) { return m.memberId === gs.member; })) {
+      gs.member = (g.members.find(function (m) { return m.isMe; }) || g.members[0]).memberId;
+    }
+    $('#gtrend-members').innerHTML = g.members.map(function (m) {
+      return '<button type="button" class="chip' + (m.memberId === gs.member ? ' on' : '') + '" data-mid="' + esc(m.memberId) + '">' +
+        esc(m.nickname) + (m.isMe ? '（你）' : '') + '</button>';
+    }).join('');
+    setRadio($('#gtrend-range'), 'grange', gs.range);
+
+    var seq = ++gs.paneSeq;
+    var box = $('#gtrend-charts');
+    box.innerHTML = '<div class="card"><p class="hint">讀取中…</p></div>';
+    var d;
+    try { d = await api.groupDetail(g.id, gs.member, gs.range); } catch (e) { box.innerHTML = ''; groupError(e); return; }
+    if (seq !== gs.paneSeq) return;
+
+    var note = $('#gtrend-note');
+    note.hidden = d.showNumbers;
+    note.textContent = '「' + d.nickname + '」沒有公開實際數字，圖上只顯示起伏和變化量。';
+
+    var word = rangeWord(d.range);
+    box.innerHTML = d.metrics.map(function (m) {
+      var meta = GROUP_METRICS[m.key], unit = meta.unit === '%' ? '%' : ' ' + meta.unit, summary = '';
+      if (m.n >= 2) {
+        if (m.key === 'water') {
+          var avg = m.pts.reduce(function (s, p) { return s + p.value; }, 0) / m.pts.length;
+          summary = d.showNumbers ? word + '平均每天 <strong>' + fmtNum(Math.round(avg / 10) * 10) + ' c.c.</strong>' : word + '記錄了 <strong>' + m.n + ' 天</strong>';
+        } else {
+          summary = word + meta.name + ' <strong>' + signed(m.change, 1) + unit + '</strong>';
+          if (d.showNumbers && m.current != null) summary += '（目前 ' + Number(m.current).toFixed(meta.decimals) + unit + '）';
+        }
+      }
+      var chart = Charts.lineChart(m.pts, {
+        label: meta.name + '變化圖', decimals: d.showNumbers ? meta.decimals : 1, band: null, target: null,
+        hideNumbers: !d.showNumbers, tone: m.key === 'water' ? 'sea' : undefined
+      });
+      return '<div class="card chart-card"><div class="chart-head"><h2>' + meta.name + '</h2><span class="chart-sum">' + summary + '</span></div>' + chart + '</div>';
+    }).join('');
+  }
+
+  function renderGroupMembers() {
+    var g = curGroup(), box = $('#gpane-members');
+    var rows = g.members.map(function (m) {
+      var badges = (m.isMe ? '<span class="me-mark">你</span>' : '') + (m.managedByMe ? '<span class="me-mark mine">我代管</span>' : '') +
+        (m.isCreator ? '<span class="me-mark creator">建立者</span>' : '');
+      var ctl = '';
+      if (m.isMe || m.managedByMe) {
+        ctl += '<label class="check small"><input type="checkbox" data-share="' + esc(m.memberId) + '"' + (m.showNumbers ? ' checked' : '') + '><span>讓這個群組看到實際數字（預設不公開）</span></label>';
+      }
+      if (m.managedByMe) ctl += '<button type="button" class="link-btn" data-remove="' + esc(m.memberId) + '">讓他退出群組</button>';
+      else if (g.isCreator && !m.isMe) ctl += '<button type="button" class="link-btn danger-text" data-remove="' + esc(m.memberId) + '">移出群組</button>';
+      return '<div class="gm-row"><div class="gm-name"><span class="nick">' + esc(m.nickname) + '</span>' + badges + '</div>' + ctl + '</div>';
+    }).join('');
+
+    var inGroup = g.members.map(function (m) { return m.memberId; });
+    var addable = st.managed.filter(function (m) { return inGroup.indexOf(m.id) < 0; });
+    var add = addable.map(function (m) {
+      return '<button type="button" class="btn block" data-add="' + esc(m.id) + '"' + (g.count >= g.max ? ' disabled' : '') + '>讓「' + esc(m.nickname) + '」也加入這個群組</button>';
+    }).join('');
+
+    box.innerHTML = '<div class="card"><h2>成員</h2>' + rows +
+      '<p class="hint" style="margin-top:10px">「實際數字」指體重、體脂、肌肉量、內臟脂肪、飲水量的數值。沒有公開的話，家人只看得到起伏和變化量。</p></div>' +
+      (add ? '<div class="card"><h2>幫長輩加入</h2><p class="hint">你代管的長輩不用邀請碼，由你決定要不要加入。</p>' + add + '</div>' : '');
+  }
+
+  function setGroupFromResult(sum) {
+    var i = gs.list.findIndex(function (x) { return x.id === sum.id; });
+    if (i >= 0) gs.list[i] = sum; else gs.list.push(sum);
+  }
+
+  function askText(message, id, placeholder, maxlength, okText) {
+    return ask(message, {
+      okText: okText, extraHtml: '<input type="text" id="' + id + '" maxlength="' + maxlength + '" placeholder="' + placeholder + '" autocomplete="off">',
+      onOpen: function () { $('#' + id).value = ''; $('#' + id).focus(); },
+      validate: function () { if ($('#' + id).value.trim()) return true; toast('請先填寫'); return false; }
+    }).then(function (ok) { return ok ? $('#' + id).value.trim() : null; });
+  }
+
+  function bindGroups() {
+    $('#group-picker').onclick = function (e) {
+      var b = e.target.closest('[data-gid]');
+      if (!b) return;
+      gs.id = b.dataset.gid; gs.member = null; renderGroups();
+    };
+    $('#group-view').onchange = function (e) { gs.view = e.target.value; renderGroups(); };
+    $('#gtrend-members').onclick = function (e) {
+      var b = e.target.closest('[data-mid]');
+      if (!b) return;
+      gs.member = b.dataset.mid; renderGroupTrend();
+    };
+    $('#gtrend-range').onchange = function (e) { gs.range = e.target.value; renderGroupTrend(); };
+
+    $('#g-create').onclick = async function () {
+      var name = await askText('幫家庭群組取個名字（最多 20 字）', 'grp-name', '例如：我的家', 20, '建立');
+      if (!name) return;
+      try {
+        var sum = await api.createGroup(name);
+        setGroupFromResult(sum);
+        gs.id = sum.id; gs.member = null;
+        renderGroups();
+        toast('群組建立好了，把邀請碼傳給家人吧');
+      } catch (e) { groupError(e); }
+    };
+
+    $('#g-join').onclick = async function () {
+      var code = await askText('請輸入家人給你的 6 碼邀請碼', 'grp-code', '例如 AB3K9X', 6, '加入');
+      if (!code) return;
+      try {
+        var sum = await api.joinGroup(code);
+        setGroupFromResult(sum);
+        gs.id = sum.id; gs.member = null;
+        renderGroups();
+        toast('已加入「' + sum.name + '」');
+      } catch (e) { groupError(e); }
+    };
+
+    // 群組抬頭裡的按鈕（內容每次重畫，用事件委派）
+    $('#group-head').onclick = async function (e) {
+      var g = curGroup();
+      if (!g) return;
+      var id = e.target.id;
+      try {
+        if (id === 'g-invite-share') {
+          var text = '邀請你加入「' + g.name + '」家庭群組！\n邀請碼：' + g.inviteCode + '\n用 LINE 登入「花蓮共好健康生活」，到「家人群組」按「輸入邀請碼加入」：\n' + SHARE_URL + '?openExternalBrowser=1';
+          if (navigator.share) {
+            try { await navigator.share({ text: text }); } catch (err) { if (err && err.name !== 'AbortError') toast('分享沒有成功，邀請碼是 ' + g.inviteCode); }
+          } else if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            toast('已複製邀請訊息，貼到 LINE 傳給家人');
+          } else {
+            toast('邀請碼是 ' + g.inviteCode + '，請傳給家人');
+          }
+        } else if (id === 'g-invite-regen') {
+          if (!(await ask('重新產生邀請碼後，舊的邀請碼會立刻失效（已經加入的人不受影響）。確定嗎？', { okText: '重新產生' }))) return;
+          setGroupFromResult(await api.regenInvite(g.id));
+          renderGroups();
+          toast('已產生新的邀請碼');
+        } else if (id === 'g-leave') {
+          var msg = '退出「' + g.name + '」後，家人馬上看不到你的資料（你的紀錄不會被刪除）。你代管的長輩也會一起退出。';
+          if (g.isCreator) msg += g.count <= 1 ? '你是最後一位成員，退出後群組會解散。' : '你是建立者，退出後群組會交給最早加入的成員。';
+          if (!(await ask(msg + '確定要退出嗎？', { okText: '退出', danger: true }))) return;
+          await api.removeFromGroup(g.id, null);
+          gs.id = null; gs.member = null;
+          await loadGroups();
+          toast('已退出群組');
+        } else if (id === 'g-disband') {
+          if (!(await ask('解散後，所有成員都會離開，群組會消失，無法復原。確定要解散「' + g.name + '」嗎？', { okText: '解散', danger: true }))) return;
+          await api.disbandGroup(g.id);
+          gs.id = null; gs.member = null;
+          await loadGroups();
+          toast('群組已解散');
+        }
+      } catch (err) { groupError(err); }
+    };
+
+    // 成員頁：公開實際數字、移出、讓長輩加入
+    $('#gpane-members').onchange = async function (e) {
+      var cb = e.target.closest('[data-share]');
+      var g = curGroup();
+      if (!cb || !g) return;
+      try {
+        setGroupFromResult(await api.setGroupShare(g.id, cb.dataset.share, cb.checked));
+        renderGroupMembers();
+        toast(cb.checked ? '這個群組現在看得到實際數字' : '已改回不公開實際數字');
+      } catch (err) { cb.checked = !cb.checked; groupError(err); }
+    };
+    $('#gpane-members').onclick = async function (e) {
+      var g = curGroup();
+      if (!g) return;
+      var rm = e.target.closest('[data-remove]'), add = e.target.closest('[data-add]');
+      try {
+        if (rm) {
+          var who = g.members.find(function (m) { return m.memberId === rm.dataset.remove; });
+          if (!who || !(await ask('確定要讓「' + who.nickname + '」離開「' + g.name + '」嗎？離開後群組裡的人就看不到他的資料了。', { okText: '確定', danger: true }))) return;
+          await api.removeFromGroup(g.id, who.memberId);
+          await loadGroups();
+          toast('已移出群組');
+        } else if (add) {
+          setGroupFromResult(await api.addManagedToGroup(g.id, add.dataset.add));
+          renderGroups(); // 上方的人數也要跟著更新
+          toast('已加入群組');
+        }
+      } catch (err) { groupError(err); }
+    };
   }
 
   // ---------- 分享成果（勾選項目 → 畫成圖片 → 用手機的分享選單傳出去）----------
