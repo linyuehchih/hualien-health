@@ -7,7 +7,7 @@
   var QUALITY = 0.7;            // 第一次壓縮的畫質
   var QUALITY_RETRY = 0.55;     // 太大時再壓一次的畫質
   var RETRY_OVER_BYTES = 350 * 1024;
-  var MAX_PER_MEAL = 3;
+  var MAX_PER_MEAL = 1;
 
   // 依照片內的方向資訊轉正（iPhone 直拍照片才不會轉 90 度）
   function decode(file) {

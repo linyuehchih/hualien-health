@@ -815,7 +815,7 @@
       };
     });
     var left = HHPhoto.MAX_PER_MEAL - pending.length;
-    $('#photo-hint').textContent = busyPhotos ? '照片處理中…' : (left > 0 ? '還可以加 ' + left + ' 張' : '已達 3 張上限');
+    $('#photo-hint').textContent = busyPhotos ? '照片處理中…' : (left > 0 ? '每餐最多 ' + HHPhoto.MAX_PER_MEAL + ' 張' : '已加 ' + HHPhoto.MAX_PER_MEAL + ' 張（每餐上限）');
   }
 
   function clearPending() {
