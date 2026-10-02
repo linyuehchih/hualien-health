@@ -206,6 +206,10 @@ select:disabled { opacity: 0.55; }
 
 .btn-line { width: 100%; margin-bottom: 12px; font-weight: 600; }
 
+/* 登入頁最底下的單位標誌：小小的、不搶眼 */
+.partner { margin-top: 26px; text-align: center; }
+.partner img { width: 145px; max-width: 50%; height: auto; opacity: 0.9; }
+
 /* 跟後台溝通時，最上方出現一條跑動的細線 */
 .busy-bar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 50; pointer-events: none; opacity: 0; transition: opacity 0.2s; overflow: hidden; }
 .busy-bar::before { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; background: var(--sea); animation: busy 1s ease-in-out infinite; }
