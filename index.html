@@ -143,8 +143,18 @@
             <label class="field"><span>體重（公斤）</span><input type="number" id="in-weight" inputmode="decimal" step="0.1" placeholder="—"></label>
             <label class="field"><span>體脂（%）</span><input type="number" id="in-fat" inputmode="decimal" step="0.1" placeholder="—"></label>
             <label class="field"><span>肌肉量（公斤）</span><input type="number" id="in-muscle" inputmode="decimal" step="0.1" placeholder="—"></label>
-            <label class="field"><span>內臟脂肪（%）</span><input type="number" id="in-visceral" inputmode="decimal" step="0.1" placeholder="—"></label>
+            <div class="field visceral-field">
+              <span>內臟脂肪
+                <select id="visceral-unit" class="unit-select" aria-label="內臟脂肪的單位">
+                  <option value="級">級</option>
+                  <option value="%">%</option>
+                  <option value="公斤">公斤</option>
+                </select>
+              </span>
+              <input type="number" id="in-visceral" inputmode="decimal" step="0.5" placeholder="—">
+            </div>
           </div>
+          <p class="hint" id="visceral-hint"></p>
           <p class="hint">體重計沒有的項目可以空著</p>
           <p class="status" id="body-status"></p>
           <button type="button" id="body-save" class="btn primary block">儲存身體數據</button>

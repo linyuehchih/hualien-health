@@ -67,7 +67,7 @@
         weightKg: HH.round1(78.4 - 3.4 * t + (r() - 0.5) * 0.8),
         bodyFatPct: HH.round1(29.6 - 2.4 * t + (r() - 0.5) * 0.6),
         muscleKg: HH.round1(30.2 + 0.4 * t + (r() - 0.5) * 0.4),
-        visceralFat: HH.round1(11.2 - 1.4 * t + (r() - 0.5) * 0.4),
+        visceralFat: HH.round1(11.2 - 1.4 * t + (r() - 0.5) * 0.4), visceralUnit: '級',
         updatedAt: Date.now()
       });
     }
@@ -189,7 +189,7 @@
       out.body.push({
         date: HH.addDays(today, -d), weightKg: HH.round1(w0 + slope * t + (r() - 0.5) * 0.6),
         bodyFatPct: HH.round1(f0 + slope * 0.5 * t + (r() - 0.5) * 0.5),
-        muscleKg: HH.round1(28 + r() * 6 + t * 0.4), visceralFat: HH.round1(9 + slope * 0.2 * t + (r() - 0.5) * 0.3)
+        muscleKg: HH.round1(28 + r() * 6 + t * 0.4), visceralFat: HH.round1(9 + slope * 0.2 * t + (r() - 0.5) * 0.3), visceralUnit: '級'
       });
       out.water.push({ date: HH.addDays(today, -d), ml: 1000 + Math.round(r() * 12) * 100 });
     }
@@ -198,13 +198,13 @@
 
   // 群組成員的名字與資料：'me'＝自己，'f0'～＝假成員，其他＝我代管的長輩
   function memberInfo(s, m) {
-    if (m.id === 'me') return { nickname: s.profile ? s.profile.nickname : '我', body: s.body, water: s.water, managedByMe: false };
+    if (m.id === 'me') return { nickname: s.profile ? s.profile.nickname : '我', body: s.body, water: s.water, managedByMe: false, visceralUnit: (s.profile && s.profile.visceralUnit) || '%' };
     if (m.id.charAt(0) === 'f') {
       var i = Number(m.id.slice(1)), fs = fakeSeries(i);
-      return { nickname: OTHER_NAMES[i % OTHER_NAMES.length], body: fs.body, water: fs.water, managedByMe: false };
+      return { nickname: OTHER_NAMES[i % OTHER_NAMES.length], body: fs.body, water: fs.water, managedByMe: false, visceralUnit: '級' };
     }
     var mg = (s.managed || []).find(function (x) { return x.id === m.id; });
-    return mg ? { nickname: mg.profile.nickname, body: mg.body, water: mg.water, managedByMe: true } : { nickname: '?', body: [], water: [], managedByMe: false };
+    return mg ? { nickname: mg.profile.nickname, body: mg.body, water: mg.water, managedByMe: true, visceralUnit: mg.profile.visceralUnit || '%' } : { nickname: '?', body: [], water: [], managedByMe: false, visceralUnit: '%' };
   }
 
   function groupSummary(s, g) {
@@ -269,6 +269,7 @@
         heightCm: p.heightCm,
         targetKg: p.targetKg,
         birthYear: p.birthYear || (cur(s).profile && cur(s).profile.birthYear) || null,
+        visceralUnit: (cur(s).profile && cur(s).profile.visceralUnit) || (isNew ? '級' : '%'),
         village: p.village || '',
         siteId: p.siteId || '',
         agreedAt: (cur(s).profile && cur(s).profile.agreedAt) || Date.now()
@@ -294,7 +295,7 @@
         id: 'g' + Date.now() + Math.floor(Math.random() * 1000),
         profile: {
           nickname: ((p.nickname || '').trim() || randomTag()).slice(0, 12), sex: p.sex, heightCm: p.heightCm, targetKg: p.targetKg,
-          birthYear: p.birthYear || null, village: p.village || '', siteId: p.siteId || '', agreedAt: Date.now(), managed: true
+          birthYear: p.birthYear || null, village: p.village || '', siteId: p.siteId || '', agreedAt: Date.now(), managed: true, visceralUnit: '級'
         },
         body: seedBody(), meals: [], water: seedWater(), bowel: seedBowel()
       };
@@ -312,6 +313,15 @@
     },
 
     getActive: function () { return activeId; },
+
+    setVisceralUnit: function (unit) {
+      if (HH.VISCERAL_UNITS.indexOf(unit) < 0) return fail('不支援這個單位');
+      var s = load(), c = cur(s);
+      if (!c.profile) return fail('請先登入');
+      c.profile.visceralUnit = unit;
+      save(s);
+      return delay(clone(c.profile));
+    },
 
     // ---- 家庭群組（示範資料）：其他成員是假的；邀請碼 DEMO12 可以加入一個示範群組 ----
     listGroups: function () {
@@ -421,14 +431,14 @@
       range = ['7', '30', '90', 'all'].indexOf(String(range)) >= 0 ? String(range) : '30';
       var from = range === 'all' ? null : HH.addDays(HH.today(), -(parseInt(range, 10) - 1));
       var metrics = ['weightKg', 'bodyFatPct', 'muscleKg', 'visceralFat'].map(function (key) {
-        var pts = info.body.filter(function (r) { return r[key] != null && (!from || r.date >= from); })
+        var pts = info.body.filter(function (r) { return r[key] != null && (!from || r.date >= from) && (key !== 'visceralFat' || (r.visceralUnit || '%') === info.visceralUnit); })
           .map(function (r) { return { date: r.date, value: r[key] }; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
         return shapeSeries(key, pts, show);
       });
       var water = info.water.filter(function (w) { return w.ml > 0 && (!from || w.date >= from); })
         .map(function (w) { return { date: w.date, value: w.ml }; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
       metrics.push(shapeSeries('water', water, show));
-      return delay({ memberId: m.id, nickname: info.nickname, showNumbers: show, mine: mine, range: range, metrics: metrics });
+      return delay({ memberId: m.id, nickname: info.nickname, showNumbers: show, mine: mine, range: range, visceralUnit: info.visceralUnit, metrics: metrics });
     },
 
     groupBoard: function (groupId) {
@@ -465,6 +475,7 @@
         date: rec.date,
         weightKg: rec.weightKg, bodyFatPct: rec.bodyFatPct,
         muscleKg: rec.muscleKg, visceralFat: rec.visceralFat,
+        visceralUnit: rec.visceralFat != null ? (rec.visceralUnit || (cur(s).profile && cur(s).profile.visceralUnit) || '%') : undefined,
         updatedAt: Date.now()
       };
       var i = cur(s).body.findIndex(function (r) { return r.date === rec.date; });

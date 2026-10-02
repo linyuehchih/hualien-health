@@ -233,6 +233,15 @@ select:disabled { opacity: 0.55; }
 }
 .back-btn { font: inherit; font-weight: 600; background: none; border: 0; color: var(--primary-ink); padding: 6px 4px; cursor: pointer; }
 
+/* ---------- 內臟脂肪的單位選擇 ---------- */
+.visceral-field > span { display: flex; align-items: center; gap: 8px; height: 1.55em; margin-bottom: 4px; }
+.unit-select {
+  font: inherit; font-size: 0.85rem; min-height: 0; height: 30px; padding: 0 6px; border-radius: 8px;
+  border: 1.5px solid var(--primary); background: var(--primary-soft); color: var(--ink); width: auto;
+}
+#visceral-hint { margin: -4px 0 6px; }
+#visceral-hint.old { color: var(--warn); }
+
 /* ---------- 家人群組 ---------- */
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .chip {

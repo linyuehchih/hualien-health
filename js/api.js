@@ -28,7 +28,8 @@
   // 只有這些動作可以「代替長輩」執行（要和後台的 MANAGED_OK 一樣）；其他動作（建立長輩、登出、家庭群組…）一定用自己的身分
   var AS_OK = {
     bootstrap: true, saveProfile: true, saveBody: true, addMeal: true, updateMeal: true, deleteMeal: true,
-    getPhoto: true, setWater: true, addBowel: true, deleteBowel: true, leaderboard: true, deleteAccount: true
+    getPhoto: true, setWater: true, addBowel: true, deleteBowel: true, leaderboard: true, deleteAccount: true,
+    setVisceralUnit: true
   };
   function keyOf(id) { return id || 'self'; }
 
@@ -173,6 +174,13 @@
       }
       if (cache) cache.profile = profile;
       if (activeAs) managedList.forEach(function (m) { if (m.id === activeAs) m.nickname = profile.nickname; });
+      return clone(profile);
+    },
+
+    // 內臟脂肪的單位（級／%／公斤）；代管長輩時改的是長輩的單位
+    setVisceralUnit: async function (unit) {
+      var profile = await call('setVisceralUnit', { unit: unit });
+      if (cache && profile) cache.profile = profile;
       return clone(profile);
     },
 

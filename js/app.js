@@ -633,12 +633,51 @@
     $('#in-weight').value = rec && rec.weightKg != null ? rec.weightKg : '';
     $('#in-fat').value = rec && rec.bodyFatPct != null ? rec.bodyFatPct : '';
     $('#in-muscle').value = rec && rec.muscleKg != null ? rec.muscleKg : '';
-    $('#in-visceral').value = rec && rec.visceralFat != null ? rec.visceralFat : '';
+    renderVisceralField(rec);
     $('#body-status').textContent = rec ? '這天已經記過了，改完按儲存就會更新' : '';
     $('#body-save').textContent = rec ? '更新身體數據' : '儲存身體數據';
     renderDayMeals(date);
     renderWater();
     renderDayBowel();
+  }
+
+  // ---------- 內臟脂肪的單位（級／%／公斤）----------
+  // 每位會員選自己體脂計用的單位；每筆紀錄記住當時的單位。紀錄沒有單位＝舊紀錄，當作 %。
+  function viscUnit() { return (st.profile && st.profile.visceralUnit) || '%'; }
+  function recVU(rec) { return (rec && rec.visceralUnit) || '%'; }
+  function unitText(u) { return u === '%' || u === '級' ? u : ' ' + u; }
+  // 內臟脂肪的單位和小數位數依會員的選擇，其他項目照舊
+  function metricMeta(m) {
+    if (m.key !== 'visceralFat') return m;
+    var vm = HH.visceralMeta(viscUnit());
+    return { key: m.key, name: m.name, unit: vm.unit, decimals: vm.decimals };
+  }
+
+  function renderVisceralField(rec) {
+    var u = viscUnit(), vm = HH.visceralMeta(u);
+    var old = !!(rec && rec.visceralFat != null && recVU(rec) !== u);
+    $('#visceral-unit').value = u;
+    $('#in-visceral').step = vm.step;
+    $('#in-visceral').value = rec && rec.visceralFat != null && !old ? rec.visceralFat : '';
+    var hint = $('#visceral-hint');
+    hint.className = old ? 'hint old' : 'hint';
+    hint.textContent = old
+      ? '這天已記的內臟脂肪是 ' + rec.visceralFat + unitText(recVU(rec)) + '（原本的單位），會保留；填新的數字就會改成「' + u + '」。'
+      : vm.hint;
+  }
+
+  async function changeVisceralUnit(unit) {
+    var before = viscUnit();
+    if (unit === before) return;
+    try {
+      st.profile = await api.setVisceralUnit(unit);
+      var others = st.body.filter(function (r) { return r.visceralFat != null && recVU(r) !== unit; }).length;
+      renderToday();
+      toast(others ? '已改用「' + unit + '」。以前用其他單位記的 ' + others + ' 筆還在，但不會畫進曲線' : '已改用「' + unit + '」');
+    } catch (e) {
+      $('#visceral-unit').value = before;
+      toast(friendlyError(e));
+    }
   }
 
   function dayWord(date) { return date === HH.today() ? '今天' : '這天'; }
@@ -821,15 +860,22 @@
       renderToday();
     };
 
+    $('#visceral-unit').onchange = function () { changeVisceralUnit(this.value); };
+
     $('#body-save').onclick = async function () {
       var date = $('#rec-date').value;
       var rec = {
         date: date,
         weightKg: num($('#in-weight').value),
         bodyFatPct: num($('#in-fat').value),
-        muscleKg: num($('#in-muscle').value),
-        visceralFat: num($('#in-visceral').value)
+        muscleKg: num($('#in-muscle').value)
       };
+      // 內臟脂肪：沒填、而且這天原本有「別的單位」的紀錄 → 連單位原樣保留，不要被清掉
+      var before = bodyOn(date);
+      var vv = num($('#in-visceral').value), vu = viscUnit();
+      if (vv == null && before && before.visceralFat != null && recVU(before) !== vu) { vv = before.visceralFat; vu = recVU(before); }
+      rec.visceralFat = vv;
+      if (vv != null) rec.visceralUnit = vu;
       if (rec.weightKg == null && rec.bodyFatPct == null && rec.muscleKg == null && rec.visceralFat == null) {
         toast('請至少填一項');
         return;
@@ -838,7 +884,6 @@
       if (rec.weightKg != null && (rec.weightKg < 20 || rec.weightKg > 300)) warn.push('體重 ' + rec.weightKg + ' 公斤');
       if (rec.bodyFatPct != null && (rec.bodyFatPct <= 0 || rec.bodyFatPct > 70)) warn.push('體脂 ' + rec.bodyFatPct + '%');
       if (rec.muscleKg != null && (rec.muscleKg <= 0 || rec.muscleKg > 150)) warn.push('肌肉量 ' + rec.muscleKg + ' 公斤');
-      if (rec.visceralFat != null && (rec.visceralFat <= 0 || rec.visceralFat > 50)) warn.push('內臟脂肪 ' + rec.visceralFat + '%');
       if (warn.length && !(await ask(warn.join('、') + '，數字好像不太對，確定要儲存嗎？', { okText: '確定儲存', cancelText: '回去修改' }))) return;
       if (bodyOn(date) && !(await ask('這天已經記過了，要更新嗎？', { okText: '更新' }))) return;
       try {
@@ -1028,7 +1073,8 @@
 
     var word = rangeWord(d.range);
     box.innerHTML = d.metrics.map(function (m) {
-      var meta = GROUP_METRICS[m.key], unit = meta.unit === '%' ? '%' : ' ' + meta.unit, summary = '';
+      var meta = m.key === 'visceralFat' ? Object.assign({ name: '內臟脂肪' }, HH.visceralMeta(d.visceralUnit)) : GROUP_METRICS[m.key];
+      var unit = unitText(meta.unit), summary = '';
       if (m.n >= 2) {
         if (m.key === 'water') {
           var avg = m.pts.reduce(function (s, p) { return s + p.value; }, 0) / m.pts.length;
@@ -1042,7 +1088,8 @@
         label: meta.name + '變化圖', decimals: d.showNumbers ? meta.decimals : 1, band: null, target: null,
         hideNumbers: !d.showNumbers, tone: m.key === 'water' ? 'sea' : undefined
       });
-      return '<div class="card chart-card"><div class="chart-head"><h2>' + meta.name + '</h2><span class="chart-sum">' + summary + '</span></div>' + chart + '</div>';
+      var gTitle = m.key === 'visceralFat' ? meta.name + '（' + meta.unit + '）' : meta.name;
+      return '<div class="card chart-card"><div class="chart-head"><h2>' + gTitle + '</h2><span class="chart-sum">' + summary + '</span></div>' + chart + '</div>';
     }).join('');
   }
 
@@ -1212,8 +1259,9 @@
       return st.water.filter(function (w) { return w.ml > 0 && (!from || w.date >= from); })
         .map(function (w) { return { date: w.date, value: w.ml }; });
     }
-    return st.body.filter(function (r) { return r[item.key] != null && (!from || r.date >= from); })
-      .map(function (r) { return { date: r.date, value: r[item.key] }; });
+    return st.body.filter(function (r) {
+      return r[item.key] != null && (!from || r.date >= from) && (item.key !== 'visceralFat' || recVU(r) === viscUnit());
+    }).map(function (r) { return { date: r.date, value: r[item.key] }; });
   }
 
   function shareAvailable(item, from) {
@@ -1260,9 +1308,9 @@
           summary: showNumbers ? rangeWord(range) + '平均每天 ' + fmtNum(Math.round(avg / 10) * 10) + ' c.c.' : rangeWord(range) + '記錄了 ' + pts.length + ' 天' });
         return;
       }
-      var m = METRICS[it.metric];
+      var m = metricMeta(METRICS[it.metric]);
       var diff = pts[pts.length - 1].value - pts[0].value;
-      var unit = m.unit === '%' ? '%' : ' ' + m.unit;
+      var unit = unitText(m.unit);
       var summary = rangeWord(range) + m.name + ' ' + signed(diff, m.decimals) + unit;
       if (showNumbers) summary += '（目前 ' + pts[pts.length - 1].value.toFixed(m.decimals) + unit + '）';
       sections.push({ type: 'chart', title: m.name, pts: pts, decimals: m.decimals, summary: summary });
@@ -1435,23 +1483,28 @@
     var range = radioValue($('#range-seg'), 'range');
     var from = range === 'all' ? null : HH.addDays(HH.today(), -(parseInt(range, 10) - 1));
     var p = st.profile;
-    var html = METRICS.map(function (m) {
-      var pts = st.body
-        .filter(function (r) { return r[m.key] != null && (!from || r.date >= from); })
+    var html = METRICS.map(function (m0) {
+      var m = metricMeta(m0);
+      var inRange = st.body.filter(function (r) { return r[m.key] != null && (!from || r.date >= from); });
+      // 內臟脂肪只畫目前單位的紀錄；其他單位的紀錄不混進來
+      var pts = inRange
+        .filter(function (r) { return m.key !== 'visceralFat' || recVU(r) === m.unit; })
         .map(function (r) { return { date: r.date, value: r[m.key] }; });
+      var otherUnit = m.key === 'visceralFat' ? inRange.length - pts.length : 0;
       var summary = '';
       if (pts.length >= 2) {
         var diff = pts[pts.length - 1].value - pts[0].value;
-        var unit = m.unit === '%' ? '%' : ' ' + m.unit;
-        summary = (range === 'all' ? '記錄以來' : '這 ' + range + ' 天') + m.name + ' <strong>' + signed(diff, m.decimals) + unit + '</strong>';
+        summary = (range === 'all' ? '記錄以來' : '這 ' + range + ' 天') + m.name + ' <strong>' + signed(diff, m.decimals) + unitText(m.unit) + '</strong>';
       }
+      var title = m.key === 'visceralFat' ? m.name + '（' + m.unit + '）' : m.name;
       var opts = { label: m.name + '變化圖', decimals: m.decimals, band: null, target: null };
       if (m.key === 'weightKg') {
         opts.band = HH.suggestedWeight(p.heightCm);
         opts.target = p.targetKg;
       }
-      return '<div class="card chart-card"><div class="chart-head"><h2>' + m.name + '</h2><span class="chart-sum">' + summary + '</span></div>' +
-        Charts.lineChart(pts, opts) + '</div>';
+      var note = otherUnit ? '<p class="hint">另有 ' + otherUnit + ' 筆用其他單位記的紀錄，沒有畫在這張圖裡（在「每日紀錄」看得到）</p>' : '';
+      return '<div class="card chart-card"><div class="chart-head"><h2>' + title + '</h2><span class="chart-sum">' + summary + '</span></div>' +
+        Charts.lineChart(pts, opts) + note + '</div>';
     }).join('');
     $('#charts').innerHTML = html + waterChartHtml(range, from) + bowelStatsHtml(range, from);
   }
@@ -1529,11 +1582,11 @@
       : '';
     $('#diary').innerHTML = shown.map(function (d) {
       var rec = bodyOn(d);
-      var bodyHtml = rec ? '<div class="body-grid">' + METRICS.map(function (m) {
+      var bodyHtml = rec ? '<div class="body-grid">' + METRICS.map(function (m0) {
+        var m = m0.key === 'visceralFat' ? Object.assign({}, m0, HH.visceralMeta(recVU(rec))) : m0; // 內臟脂肪用這筆紀錄自己的單位
         var v = rec[m.key];
-        var unit = m.unit === '%' ? '%' : ' ' + m.unit;
         return '<span class="body-stat"><span class="sub">' + m.name + '</span>' +
-          (v == null ? '<span class="hint">—</span>' : '<span><strong>' + Number(v).toFixed(m.decimals) + '</strong>' + unit + '</span>') + '</span>';
+          (v == null ? '<span class="hint">—</span>' : '<span><strong>' + Number(v).toFixed(m.decimals) + '</strong>' + unitText(m.unit) + '</span>') + '</span>';
       }).join('') + '</div>' : NOT_RECORDED;
 
       var ml = waterOn(d);
@@ -1727,8 +1780,8 @@
     };
 
     $('#export-body').onclick = function () {
-      var rows = [['日期', '體重（公斤）', '體脂（%）', '肌肉量（公斤）', '內臟脂肪（%）']];
-      st.body.forEach(function (r) { rows.push([r.date, r.weightKg, r.bodyFatPct, r.muscleKg, r.visceralFat]); });
+      var rows = [['日期', '體重（公斤）', '體脂（%）', '肌肉量（公斤）', '內臟脂肪', '內臟脂肪單位']];
+      st.body.forEach(function (r) { rows.push([r.date, r.weightKg, r.bodyFatPct, r.muscleKg, r.visceralFat, r.visceralFat != null ? recVU(r) : '']); });
       download('花蓮共好健康生活_身體數據_' + HH.today() + '.csv', rows);
     };
 
