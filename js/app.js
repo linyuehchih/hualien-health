@@ -576,6 +576,9 @@
       if (!form.consent.checked) { $('#managed-error').textContent = '請勾選「我已告知對方，並取得對方同意」'; return; }
       var btn = $('#managed-submit');
       if (btn.disabled) return;
+      // 已經建立過性別、出生年、身高、里別都一樣的長輩：先確認，避免同一個人建立兩次
+      var twin = (st.managed || []).find(function (m) { return similarManaged(m, p); });
+      if (twin && !(await ask('你已經建立過很像的長輩「' + twin.nickname + '」（性別、出生年、身高、里別都一樣）。確定要再建立一位嗎？', { okText: '確定再建立一位' }))) return;
       btn.disabled = true;
       try {
         var res = await api.createManaged(Object.assign({}, p, { consent: true }));
@@ -1007,7 +1010,65 @@
     if (e && e.code === 'GROUP') loadGroups();
   }
 
+  // ---------- 我的家人圖（2026-10-03）----------
+  // 兩位代管長輩的性別、出生年、身高、里別都一樣（或綽號一樣），很可能是重複建立了同一個人
+  function managedKey(m) {
+    return [m.sex, m.birthYear, m.heightCm, m.village].join('|');
+  }
+  function similarManaged(a, b) {
+    var full = a.sex && a.birthYear && a.heightCm && a.village;
+    return (full && managedKey(a) === managedKey(b)) || (a.nickname || '').replace(/\s+/g, '') === (b.nickname || '').replace(/\s+/g, '');
+  }
+  // 回傳 [[長輩A, 長輩B], ...]
+  function managedDups(list) {
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      for (var j = i + 1; j < list.length; j++) if (similarManaged(list[i], list[j])) out.push([list[i], list[j]]);
+    }
+    return out;
+  }
+
+  function renderFamilyMap() {
+    var box = $('#family-map');
+    var managed = st.managed || [];
+    if (!managed.length && !gs.list.length) { box.hidden = true; return; }
+    var dups = managedDups(managed);
+    var dupIds = {};
+    dups.forEach(function (p) { dupIds[p[0].id] = dupIds[p[1].id] = true; });
+    var node = function (text, cls) { return '<span class="fam-node' + (cls ? ' ' + cls : '') + '">' + text + '</span>'; };
+
+    var branches = [];
+    branches.push('<div class="fam-branch"><p class="fam-label">我代管的長輩<b>' + managed.length + '／5 位</b></p><div class="fam-nodes">' +
+      (managed.length ? managed.map(function (m) { return node(esc(m.nickname) + (dupIds[m.id] ? ' ⚠' : ''), dupIds[m.id] ? 'warn' : 'elder'); }).join('')
+        : '<span class="hint">還沒有。沒有 LINE 的長輩可以到「我的帳號」幫他建立</span>') + '</div></div>');
+    gs.list.forEach(function (g) {
+      branches.push('<div class="fam-branch"><p class="fam-label">群組「' + esc(g.name) + '」<b>' + g.count + '／' + g.max + ' 人</b></p><div class="fam-nodes">' +
+        // 我排第一、我代管的長輩接著，其他人在後面
+        g.members.slice().sort(function (a, b) {
+          var rank = function (m) { return m.isMe ? 0 : m.managedByMe ? 1 : 2; };
+          return rank(a) - rank(b);
+        }).map(function (m) {
+          if (m.isMe) return node(esc(m.nickname) + '（我）', 'me');
+          return node(esc(m.nickname) + (m.managedByMe ? '<small>代管</small>' : ''), m.managedByMe ? 'elder' : '');
+        }).join('') + '</div></div>');
+    });
+    if (!gs.list.length) {
+      branches.push('<div class="fam-branch"><p class="fam-label">家庭群組<b>0 個</b></p><div class="fam-nodes"><span class="hint">還沒有加入群組，可以在下面建立或用邀請碼加入</span></div></div>');
+    }
+
+    var warn = dups.map(function (p) {
+      return '<p class="fam-warn">⚠ 「' + esc(p[0].nickname) + '」和「' + esc(p[1].nickname) + '」的資料一樣，可能重複建立了同一位長輩。' +
+        '不需要的那一位：在畫面上方切換成他 →「我的帳號」→ 最下面的「刪除帳號」。</p>';
+    }).join('');
+
+    box.innerHTML = '<h2>我的家人圖</h2>' +
+      '<div class="fam-root">' + node('我：' + esc(st.selfNick || '我'), 'root') + '</div>' +
+      '<div class="fam-branches">' + branches.join('') + '</div>' + warn;
+    box.hidden = false;
+  }
+
   function renderGroups() {
+    renderFamilyMap();
     var g = curGroup();
     $('#groups-acting-hint').hidden = !(api.getActive && api.getActive());
     $('#groups-intro').hidden = gs.list.length > 0;

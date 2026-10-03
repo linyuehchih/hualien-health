@@ -173,7 +173,9 @@
         if (!profile) throw new Error('資料可能已經儲存，但讀取失敗，請重新整理網頁再試一次');
       }
       if (cache) cache.profile = profile;
-      if (activeAs) managedList.forEach(function (m) { if (m.id === activeAs) m.nickname = profile.nickname; });
+      if (activeAs) managedList.forEach(function (m) {
+        if (m.id === activeAs) Object.assign(m, { nickname: profile.nickname, sex: profile.sex, birthYear: profile.birthYear, heightCm: profile.heightCm, village: profile.village });
+      });
       return clone(profile);
     },
 
@@ -194,7 +196,8 @@
     createManaged: async function (p) {
       var res = await call('createManaged', p);
       if (!res || !res.id || !res.profile) throw new Error('帳號可能已建立，但讀取失敗，請重新整理網頁');
-      managedList.push({ id: res.id, nickname: res.profile.nickname });
+      var pf = res.profile;
+      managedList.push({ id: res.id, nickname: pf.nickname, sex: pf.sex, birthYear: pf.birthYear, heightCm: pf.heightCm, village: pf.village });
       return clone(res);
     },
 

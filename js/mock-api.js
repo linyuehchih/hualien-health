@@ -306,7 +306,10 @@
 
     // ---- 代管成員（幫沒有 LINE 的長輩記錄；示範資料）----
     listManaged: function () {
-      return delay((load().managed || []).map(function (m) { return { id: m.id, nickname: m.profile.nickname }; }));
+      return delay((load().managed || []).map(function (m) {
+        var pf = m.profile;
+        return { id: m.id, nickname: pf.nickname, sex: pf.sex, birthYear: pf.birthYear || null, heightCm: pf.heightCm, village: pf.village || '' };
+      }));
     },
 
     createManaged: function (p) {
