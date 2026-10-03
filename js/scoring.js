@@ -32,11 +32,25 @@
   // ---- 競賽計分 ----
   var MIN_SPAN_DAYS = 14;   // 第一筆到最新一筆至少相隔幾天才上榜
   var W_FAT = 0.7;          // 體脂減少比例的權重
-  var W_WEIGHT = 0.3;       // 體重減少比例的權重
+  var W_WEIGHT = 0.3;       // 體重項（往健康體重範圍靠近的比例）的權重
   var EDIT_WINDOW_DAYS = 3; // 只能新增或修改最近幾天的身體數據
 
-  // records: [{date, weightKg, bodyFatPct, ...}]，refDate: 今天
-  function scoreMember(records, season, refDate) {
+  // 體重項（2026-10-03 岳志決定）：只算「往健康體重範圍（BMI 18.5～24）靠近」多少，以第一筆體重的百分比表示。
+  // 太重的人減重加分、太輕的人增重加分；已經在範圍內的人這項不加不扣；從範圍內減到過輕會扣分。
+  // 沒有身高時退回舊算法（體重減少比例）。後台 Code.gs 的 weightTowardRange_ 必須同步修改。
+  function weightTowardRange(firstKg, lastKg, heightCm) {
+    if (!(heightCm > 0)) return (firstKg - lastKg) / firstKg * 100;
+    var m = heightCm / 100, lo = BMI_LOW * m * m, hi = BMI_HIGH * m * m;
+    function dist(w) { return w > hi ? w - hi : w < lo ? lo - w : 0; }
+    return (dist(firstKg) - dist(lastKg)) / firstKg * 100;
+  }
+  function inHealthyRange(kg, heightCm) {
+    var m = heightCm / 100;
+    return heightCm > 0 && kg >= BMI_LOW * m * m && kg <= BMI_HIGH * m * m;
+  }
+
+  // records: [{date, weightKg, bodyFatPct, ...}]，refDate: 今天，heightCm: 身高（體重項要用）
+  function scoreMember(records, season, refDate, heightCm) {
     var rs = records
       .filter(function (r) {
         return r.date >= season.start && r.date <= season.end &&
@@ -58,12 +72,13 @@
     }
 
     var fatPct = (first.bodyFatPct - last.bodyFatPct) / first.bodyFatPct * 100;
-    var weightPct = (first.weightKg - last.weightKg) / first.weightKg * 100;
+    var weightPct = weightTowardRange(first.weightKg, last.weightKg, heightCm);
     return {
       qualified: true,
       score: round2(fatPct * W_FAT + weightPct * W_WEIGHT),
       fatPct: round2(fatPct),
       weightPct: round2(weightPct),
+      weightInRange: inHealthyRange(first.weightKg, heightCm) && inHealthyRange(last.weightKg, heightCm),
       first: first,
       last: last,
       achievedAt: last.date
@@ -139,7 +154,7 @@
     toStr: toStr, parse: parse, today: today, addDays: addDays, daysBetween: daysBetween,
     seasonOf: seasonOf, prevSeason: prevSeason, round1: round1, round2: round2,
     MIN_SPAN_DAYS: MIN_SPAN_DAYS, EDIT_WINDOW_DAYS: EDIT_WINDOW_DAYS,
-    scoreMember: scoreMember, rankEntries: rankEntries,
+    scoreMember: scoreMember, rankEntries: rankEntries, weightTowardRange: weightTowardRange,
     BMI_LOW: BMI_LOW, BMI_HIGH: BMI_HIGH,
     bmi: bmi, bmiCategory: bmiCategory, suggestedWeight: suggestedWeight,
     fatThreshold: fatThreshold, fatStatus: fatStatus,

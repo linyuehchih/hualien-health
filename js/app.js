@@ -362,8 +362,15 @@
 
   // ---------- 出生年、身高、目標體重：旁邊即時顯示建議體重範圍與提醒 ----------
   var ELDER_TARGET_NOTE = '65 歲以上不建議快速減重。目標請先和醫師或營養師討論；如果現在的體重已在建議範圍內，目標以「維持體重和肌力」為主。';
-  var RANK_NORMAL_NOTE = '你的體重已在建議範圍內，這一季建議以維持體重和肌力為主，不要為了名次減太多。分數高不代表比較健康。';
-  var RANK_LOW_NOTE = '你的體重已低於建議範圍，繼續減重可能傷害健康。建議先暫停減重，並諮詢醫師或營養師。排名只是遊戲，健康比名次重要。';
+  var RANK_NORMAL_NOTE = '你的體重已在建議範圍內：體重這一項不加分也不扣分，分數主要看體脂。建議以維持體重、增加肌力為主，減到過輕反而會扣分。';
+  var RANK_LOW_NOTE = '你的體重低於建議範圍：繼續減重會扣分，也可能傷害健康；體重往建議範圍增加反而會加分。建議諮詢醫師或營養師。';
+
+  // 排行榜上體重這一項的說明（2026-10-03 起只算往健康體重範圍靠近多少）
+  function weightScoreText(r) {
+    if (r.weightInRange) return '都在健康範圍內，這項不加不扣';
+    var v = r.weightPct || 0;
+    return v >= 0 ? '往健康範圍靠近 ' + v.toFixed(2) + '%' : '離健康範圍遠了 ' + Math.abs(v).toFixed(2) + '%';
+  }
   var ELDER_SHORT_NOTE ='65 歲以上不建議快速減重；體重已在建議範圍內的話，以維持體重和肌力為主。有疑問請洽醫師或營養師。';
 
   function bindBodyFields(form) {
@@ -1299,7 +1306,7 @@
         if (!r || !r.qualified) return;
         sections.push({ type: 'rank', title: r.seasonLabel,
           line1: '第 ' + r.rank + ' 名 · ' + r.score.toFixed(2) + ' 分',
-          line2: '體脂減少 ' + r.fatPct.toFixed(2) + '%｜體重減少 ' + r.weightPct.toFixed(2) + '%' });
+          line2: '體脂減少 ' + r.fatPct.toFixed(2) + '%｜體重' + weightScoreText(r) });
         return;
       }
       var pts = sharePoints(it, from);
@@ -1400,7 +1407,7 @@
       var lb = await api.getLeaderboard('all');
       var r = lb.me && lb.me.result;
       share.rank = r && r.qualified
-        ? { qualified: true, rank: lb.me.rank, score: r.score, fatPct: r.fatPct, weightPct: r.weightPct, seasonLabel: lb.season.label }
+        ? { qualified: true, rank: lb.me.rank, score: r.score, fatPct: r.fatPct, weightPct: r.weightPct, weightInRange: r.weightInRange, seasonLabel: lb.season.label }
         : { qualified: false };
     } catch (e) {
       share.rank = { qualified: false };
@@ -1456,10 +1463,11 @@
       if (p.targetKg == null) {
         h.push('<p class="hint">還沒設定目標體重，想設定可以到「我的帳號」填寫</p>');
       } else {
+        // 目標可能比現在重（想增重）也可能比較輕；差 0.5 公斤以內算達成
         var gap = HH.round1(lw.weightKg - p.targetKg);
-        h.push('<p>' + (gap > 0
-          ? '目標 ' + p.targetKg + ' 公斤，<strong>還差 ' + gap.toFixed(1) + ' 公斤</strong>'
-          : '已達成目標體重 ' + p.targetKg + ' 公斤！') + '</p>');
+        h.push('<p>' + (Math.abs(gap) <= 0.5
+          ? '已達成目標體重 ' + p.targetKg + ' 公斤！'
+          : '目標 ' + p.targetKg + ' 公斤，<strong>還要' + (gap > 0 ? '減' : '增加') + ' ' + Math.abs(gap).toFixed(1) + ' 公斤</strong>') + '</p>');
       }
     } else {
       h.push('<p class="sub">我的 BMI</p><p>記錄體重後就會顯示 BMI</p>');
@@ -1708,7 +1716,7 @@
       me = '<p class="sub">我的成績</p>' +
         '<p class="me-rank">' + inGroup + '第 <strong>' + lb.me.rank + '</strong> 名 · ' + r.score.toFixed(2) + ' 分</p>' +
         '<p>體脂 ' + r.first.bodyFatPct + '% → ' + r.last.bodyFatPct + '%（減少比例 ' + r.fatPct.toFixed(2) + '%）</p>' +
-        '<p>體重 ' + r.first.weightKg + ' → ' + r.last.weightKg + ' 公斤（減少比例 ' + r.weightPct.toFixed(2) + '%）</p>' +
+        '<p>體重 ' + r.first.weightKg + ' → ' + r.last.weightKg + ' 公斤（' + weightScoreText(r) + '）</p>' +
         '<p class="hint">這一欄只有你自己看得到</p>';
     } else if (r.status === 'none') {
       me = '<p class="sub">我的成績</p><p>記錄一筆同時有<strong>體重和體脂</strong>的資料，就開始參加這一季的比賽</p>';

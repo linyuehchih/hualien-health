@@ -147,7 +147,7 @@
         if (date > lastDay) break;
         records.push({ date: date, weightKg: HH.round1(w0 * (1 + wChange * frac)), bodyFatPct: HH.round1(f0 * (1 + fChange * frac)) });
       }
-      return { id: 'o' + i, nickname: name, hidden: false, records: records };
+      return { id: 'o' + i, nickname: name, hidden: false, records: records, heightCm: 152 + (i * 7) % 26 };
     });
   }
 
@@ -197,6 +197,13 @@
   }
 
   // 群組成員的名字與資料：'me'＝自己，'f0'～＝假成員，其他＝我代管的長輩
+  // 計分要用身高（體重項看是否往健康範圍靠近）
+  function memberHeight(s, m) {
+    if (m.id === 'me') return s.profile ? s.profile.heightCm : null;
+    var mg = (s.managed || []).find(function (x) { return x.id === m.id; });
+    return mg ? mg.profile.heightCm : null;
+  }
+
   function memberInfo(s, m) {
     if (m.id === 'me') return { nickname: s.profile ? s.profile.nickname : '我', body: s.body, water: s.water, managedByMe: false, visceralUnit: (s.profile && s.profile.visceralUnit) || '%' };
     if (m.id.charAt(0) === 'f') {
@@ -452,8 +459,10 @@
       var others = othersFor(season, today);
       var entries = g.members.map(function (m) {
         var info = memberInfo(s, m);
-        var recs = m.id.charAt(0) === 'f' ? others[Number(m.id.slice(1)) % others.length].records : info.body;
-        return { id: m.id, nickname: info.nickname, hidden: false, isMe: m.id === 'me', mine: !!info.managedByMe, result: HH.scoreMember(recs, season, today) };
+        var o = m.id.charAt(0) === 'f' ? others[Number(m.id.slice(1)) % others.length] : null;
+        var recs = o ? o.records : info.body;
+        var height = o ? o.heightCm : memberHeight(s, m);
+        return { id: m.id, nickname: info.nickname, hidden: false, isMe: m.id === 'me', mine: !!info.managedByMe, result: HH.scoreMember(recs, season, today, height) };
       });
       var ranked = HH.rankEntries(entries);
       return delay({
@@ -585,9 +594,9 @@
       var site = (window.HH_SITES ? window.HH_SITES.sites : []).find(function (x) { return x.id === prof.siteId; });
       var group = { scope: scope || 'all', label: scope === 'village' ? prof.village : scope === 'site' ? (site ? site.name : '') : '全部' };
       var entries = others.map(function (o) {
-        return { id: o.id, nickname: o.nickname, hidden: o.hidden, isMe: false, result: HH.scoreMember(o.records, season, today) };
+        return { id: o.id, nickname: o.nickname, hidden: o.hidden, isMe: false, result: HH.scoreMember(o.records, season, today, o.heightCm) };
       });
-      var mine = HH.scoreMember(cur(s).body, season, today);
+      var mine = HH.scoreMember(cur(s).body, season, today, prof.heightCm);
       entries.push({ id: 'me', nickname: cur(s).profile ? cur(s).profile.nickname : '我', hidden: false, isMe: true, result: mine });
       var ranked = HH.rankEntries(entries);
       var meRow = ranked.find(function (e) { return e.isMe; });
