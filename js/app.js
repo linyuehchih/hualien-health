@@ -148,6 +148,8 @@
   // ---------- 啟動 ----------
   function init() {
     if (api.isDemo) {
+      $('#demo-banner').innerHTML = '示範模式：畫面上都是假資料，還沒連接後台 ' +
+        '<button type="button" id="demo-reset" class="link-btn">重設示範</button>';
       $('#demo-banner').hidden = false;
       $('#demo-reset').onclick = async function () {
         if (!(await ask('要清掉所有示範資料，回到剛打開的狀態嗎？'))) return;
