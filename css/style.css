@@ -113,6 +113,7 @@ a { color: var(--sea); }
 
 /* ---------- 表單 ---------- */
 .field { display: block; margin-bottom: 12px; border: 0; padding: 0; }
+.field-note { display: block; margin-top: 4px; font-size: 0.8rem; color: var(--muted); }
 .field > span, .field > legend { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 4px; padding: 0; }
 
 input[type="text"], input[type="number"], input[type="date"], textarea, select {

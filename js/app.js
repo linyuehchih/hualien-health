@@ -462,6 +462,7 @@
         }
         toast('歡迎，' + profile.nickname + '！');
       } catch (err) {
+        $('#onboard-error').textContent = friendlyError(err);
         toast(friendlyError(err));
       } finally {
         btn.disabled = false;
@@ -1791,7 +1792,13 @@
       e.preventDefault();
       var p = readProfileForm(f, $('#profile-error'), false);
       if (!p) return;
-      st.profile = await api.saveProfile(p, false);
+      try {
+        st.profile = await api.saveProfile(p, false);
+      } catch (err) {
+        // 例如綽號已經有人用了：顯示在表單上，讓使用者直接改
+        $('#profile-error').textContent = friendlyError(err);
+        return;
+      }
       await afterProfileSaved();
       fillAccount();
       toast('已儲存');

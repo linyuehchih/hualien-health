@@ -197,6 +197,20 @@
   }
 
   // 群組成員的名字與資料：'me'＝自己，'f0'～＝假成員，其他＝我代管的長輩
+  // 示範：綽號不能跟別人重複（規則和後台 Code.gs 的 assertNicknameFree_ 一樣；示範用的其他會員也算）
+  // 自己原本的綽號可以保留，只有改成新綽號時才檢查。重複時回傳錯誤訊息，沒重複回傳空字串
+  function nickKey(x) { return String(x == null ? '' : x).replace(/\s+/g, '').toLowerCase(); }
+  function nickTakenMsg(s, wanted, selfProfile) {
+    if (!wanted || (selfProfile && nickKey(wanted) === nickKey(selfProfile.nickname))) return '';
+    var names = OTHER_NAMES.slice();
+    if (s.profile) names.push(s.profile.nickname);
+    (s.managed || []).forEach(function (m) { names.push(m.profile.nickname); });
+    var k = nickKey(wanted);
+    return names.some(function (n) { return nickKey(n) === k; })
+      ? '「' + wanted + '」已經有人用了，請換一個綽號，例如加上里名或數字（像「主權' + wanted + '」「' + wanted + '65」）'
+      : '';
+  }
+
   // 計分要用身高（體重項看是否往健康範圍靠近）
   function memberHeight(s, m) {
     if (m.id === 'me') return s.profile ? s.profile.heightCm : null;
@@ -269,6 +283,8 @@
       var s = load();
       if (!s.session) return fail('請先登入');
       var nickname = (p.nickname || '').trim();
+      var dup = nickTakenMsg(s, nickname, cur(s).profile);
+      if (dup) return fail(dup);
       if (!nickname) nickname = (cur(s).profile && cur(s).profile.nickname) || randomTag();
       cur(s).profile = {
         nickname: nickname.slice(0, 12),
@@ -298,6 +314,8 @@
       var s = load();
       s.managed = s.managed || [];
       if (s.managed.length >= 5) return fail('一個帳號最多可以幫 5 位長輩建立帳號');
+      var dup = nickTakenMsg(s, (p.nickname || '').trim(), null);
+      if (dup) return fail(dup);
       var m = {
         id: 'g' + Date.now() + Math.floor(Math.random() * 1000),
         profile: {
