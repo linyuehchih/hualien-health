@@ -222,6 +222,13 @@ select:disabled { opacity: 0.55; }
 .copyright { margin: 18px 0 0; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.8rem; color: var(--muted); }
 .copyright img { height: 38px; width: auto; border-radius: 6px; }
 .site-foot { margin-top: 28px; text-align: center; font-size: 0.8rem; color: var(--muted); display: grid; gap: 4px; }
+/* 登入頁：左邊連結、右邊 QR Code */
+.login-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; text-align: left; }
+.login-links { display: grid; gap: 4px; justify-items: start; flex: 1; min-width: 0; }
+.login-links .link-btn { padding-left: 0; }
+.login-qr { margin: 0; flex: none; text-align: center; }
+.login-qr img { display: block; width: 110px; height: 110px; margin: 0 auto 4px; border-radius: 8px; background: #fff; padding: 4px; box-shadow: 0 0 0 1px var(--line); }
+.login-qr figcaption { font-size: 0.72rem; line-height: 1.35; color: var(--muted); }
 
 /* ---------- 主畫面頂端與分頁列 ---------- */
 .topbar {
