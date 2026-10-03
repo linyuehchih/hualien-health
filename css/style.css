@@ -229,6 +229,17 @@ select:disabled { opacity: 0.55; }
 .login-links .link-btn { padding-left: 0; }
 .login-qr { margin: 0; flex: none; text-align: center; }
 .login-qr img { display: block; width: 110px; height: 110px; margin: 0 auto 4px; border-radius: 8px; background: #fff; padding: 4px; box-shadow: 0 0 0 1px var(--line); }
+/* ---------- 使用導覽：畫面變暗，圈出一個按鈕，旁邊放說明 ---------- */
+.tour[hidden] { display: none; }
+.tour { position: fixed; inset: 0; z-index: 200; }
+.tour-hole { position: fixed; border-radius: 14px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75); outline: 4px solid #ffd978; transition: all 0.25s ease; pointer-events: none; }
+.tour-tip { position: fixed; background: var(--surface); color: var(--ink); border-radius: 16px; padding: 16px 18px 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+.tour-step { margin: 0 0 4px; font-size: 0.85rem; color: var(--primary); font-weight: 600; }
+.tour-text { margin: 0 0 14px; font-size: 1.1rem; line-height: 1.55; font-weight: 600; }
+.tour-btns { display: flex; justify-content: flex-end; gap: 10px; }
+.tour-btns .btn[hidden] { display: none; }
+.tour-again { margin-bottom: 14px; }
+
 /* ---------- 我的家人圖：我 → 代管的長輩、每個群組（像組織圖的樹狀線） ---------- */
 .fam h2 { margin-bottom: 10px; }
 .fam-root { margin-bottom: 2px; }

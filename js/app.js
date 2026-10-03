@@ -111,8 +111,81 @@
     return ['login', 'onboard', 'app', 'faq'].filter(function (v) { return !$('#view-' + v).hidden; })[0];
   }
 
+  // ---------- 使用導覽（2026-10-03）：第一次進主畫面時，一步一步圈出重點，最後停在「問」----------
+  // 看過了記在這支手機的瀏覽器裡；之後可以從「問」頁面最上面「再看一次使用說明」重看
+  var TOUR_KEY = 'hh_tour_v1';
+  var TOUR_STEPS = [
+    { sel: '.tabbar [data-tab="today"]', text: '每天在「今天記錄」記體重、三餐、喝水和排便' },
+    { sel: '.tabbar [data-tab="trend"]', text: '「我的變化」看 BMI、變化曲線，還有離目標還差多少' },
+    { sel: '.tabbar [data-tab="rank"]', text: '「競賽排行」每季一場比賽，可以看全部、本里、本據點的排名' },
+    { sel: '.tabbar [data-tab="groups"]', text: '「家人群組」跟家人組隊互相打氣，也能幫沒有 LINE 的長輩記錄' },
+    { sel: '#view-app .help-btn', text: '不知道怎麼用、有問題，就按右上角的「問」，裡面有常見問題可以查' }
+  ];
+  var tourIdx = 0;
+
+  function tourSeen() { try { return localStorage.getItem(TOUR_KEY) === '1'; } catch (e) { return false; } }
+  function markTourSeen() { try { localStorage.setItem(TOUR_KEY, '1'); } catch (e) { /* 存不了就算了，下次再看一次 */ } }
+
+  function startTour() {
+    tourIdx = 0;
+    $('#tour').hidden = false;
+    showTourStep();
+    $('#tour-next').focus();
+  }
+
+  function endTour() {
+    $('#tour').hidden = true;
+    markTourSeen();
+  }
+
+  function showTourStep() {
+    var s = TOUR_STEPS[tourIdx];
+    var el = $(s.sel);
+    if (!el) { endTour(); return; }
+    var r = el.getBoundingClientRect(), pad = 6;
+    var hole = $('.tour-hole');
+    hole.style.left = (r.left - pad) + 'px';
+    hole.style.top = (r.top - pad) + 'px';
+    hole.style.width = (r.width + pad * 2) + 'px';
+    hole.style.height = (r.height + pad * 2) + 'px';
+    var last = tourIdx === TOUR_STEPS.length - 1;
+    $('#tour-step').textContent = (tourIdx + 1) + '／' + TOUR_STEPS.length;
+    $('#tour-text').textContent = s.text;
+    $('#tour-next').textContent = last ? '知道了' : '下一步';
+    $('#tour-skip').hidden = last;
+    // 說明框放在圈起來的地方旁邊：目標在畫面下半部就放上面，否則放下面
+    var tip = $('.tour-tip');
+    var w = Math.min(340, window.innerWidth - 32);
+    tip.style.width = w + 'px';
+    tip.style.left = Math.max(16, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 16)) + 'px';
+    if (r.top > window.innerHeight / 2) {
+      tip.style.top = '';
+      tip.style.bottom = (window.innerHeight - r.top + pad + 12) + 'px';
+    } else {
+      tip.style.bottom = '';
+      tip.style.top = (r.bottom + pad + 12) + 'px';
+    }
+  }
+
+  function bindTour() {
+    $('#tour-next').onclick = function () {
+      if (tourIdx >= TOUR_STEPS.length - 1) { endTour(); return; }
+      tourIdx++;
+      showTourStep();
+    };
+    $('#tour-skip').onclick = endTour;
+    window.addEventListener('resize', function () { if (!$('#tour').hidden) showTourStep(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('#tour').hidden) endTour(); });
+    $('#tour-again').onclick = function () {
+      closeFaq();
+      window.scrollTo(0, 0);
+      setTimeout(startTour, 200);
+    };
+  }
+
   function openFaq() {
     faqReturn = { view: currentView() || 'login', scroll: window.scrollY };
+    $('#tour-again').hidden = faqReturn.view !== 'app'; // 登入前看常見問題時不顯示
     $('#faq-q').value = '';
     renderFaq();
     showView('faq');
@@ -160,6 +233,7 @@
     $$('[data-open-faq]').forEach(function (b) { b.onclick = openFaq; });
     $('#faq-back').onclick = closeFaq;
     $('#faq-q').oninput = renderFaq;
+    bindTour();
     bindLogin();
     bindOnboard();
     bindToday();
@@ -603,7 +677,9 @@
     setupDatePicker();
     clearPending();
     switchTab('today');
+    // 舊會員先補出生年；導覽留到下次打開（不要兩個視窗疊在一起）
     if (!profile.birthYear) promptBirthYear();
+    else if (!tourSeen()) setTimeout(startTour, 500);
   }
 
   // 舊會員沒有出生年：打開網站時主動提醒，按「現在去填」直接帶到「我的帳號」

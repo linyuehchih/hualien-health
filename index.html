@@ -26,7 +26,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="css/style.css?v=cdd8db57">
+  <link rel="stylesheet" href="css/style.css?v=0a47af07">
 </head>
 <body>
   <div class="busy-bar" aria-hidden="true"></div>
@@ -437,6 +437,7 @@
       <span></span>
     </header>
     <div class="page faq-page">
+      <button type="button" class="btn block tour-again" id="tour-again" hidden>再看一次使用說明</button>
       <div class="faq-search">
         <input type="search" id="faq-q" placeholder="輸入關鍵字，例如：體脂、喝水、便秘" aria-label="搜尋常見問題">
       </div>
@@ -547,6 +548,19 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <!-- 使用導覽：第一次進主畫面時，一步一步圈出重點（2026-10-03） -->
+  <div id="tour" class="tour" hidden>
+    <div class="tour-hole" aria-hidden="true"></div>
+    <div class="tour-tip" role="dialog" aria-modal="true" aria-labelledby="tour-text">
+      <p class="tour-step" id="tour-step"></p>
+      <p class="tour-text" id="tour-text"></p>
+      <div class="tour-btns">
+        <button type="button" class="btn" id="tour-skip">跳過</button>
+        <button type="button" class="btn primary" id="tour-next">下一步</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/config.js?v=5ed413b3"></script>
   <script src="js/faq.js?v=346db03b"></script>
   <script src="js/sites.js?v=9af664f8"></script>
@@ -556,6 +570,6 @@
   <script src="js/api.js?v=20f72d7c"></script>
   <script src="js/charts.js?v=ae593227"></script>
   <script src="js/share.js?v=af373cb2"></script>
-  <script src="js/app.js?v=bd8ecd4a"></script>
+  <script src="js/app.js?v=e985af1d"></script>
 </body>
 </html>
