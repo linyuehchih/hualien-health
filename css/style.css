@@ -228,6 +228,10 @@ select:disabled { opacity: 0.55; }
 .login-links .link-btn { padding-left: 0; }
 .login-qr { margin: 0; flex: none; text-align: center; }
 .login-qr img { display: block; width: 110px; height: 110px; margin: 0 auto 4px; border-radius: 8px; background: #fff; padding: 4px; box-shadow: 0 0 0 1px var(--line); }
+/* 登入頁最下面：合作社標誌和「© 小志」同一列 */
+.login-bottom { display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 22px; }
+.login-bottom .partner, .login-bottom .copyright { margin: 0; }
+.login-bottom .partner img { max-width: none; }
 .login-qr figcaption { font-size: 0.72rem; line-height: 1.35; color: var(--muted); }
 
 /* ---------- 主畫面頂端與分頁列 ---------- */
