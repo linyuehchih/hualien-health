@@ -376,7 +376,8 @@ select:disabled { opacity: 0.55; }
 .tip-title { font-weight: 700; font-size: 1.05rem; color: var(--sea-ink); margin-bottom: 2px; }
 .day-meals { margin-top: 14px; }
 .day-meals .sub { margin-bottom: 6px; }
-.meal-row { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line); }
+.meal-row { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line); }
+@media (max-width: 480px) { .meal-row .meal-text { flex: 1 1 calc(100% - 70px); } }
 .meal-tag {
   flex: none; font-size: 0.8rem; font-weight: 600;
   background: var(--primary-soft); color: var(--primary);

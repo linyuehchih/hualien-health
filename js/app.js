@@ -845,14 +845,29 @@
   }
 
   function renderDayMeals(date) {
-    var list = st.meals.filter(function (m) { return m.date === date; });
-    if (!list.length) { $('#day-meals').innerHTML = '<p class="hint">這天還沒有飲食紀錄</p>'; return; }
-    list.sort(mealSort);
-    $('#day-meals').innerHTML = '<p class="sub">這天已記錄</p>' + list.map(function (m) {
+    var box = $('#day-meals');
+    var list = orderMeals(st.meals.filter(function (m) { return m.date === date; }));
+    if (!list.length) { box.innerHTML = '<p class="hint">這天還沒有飲食紀錄</p>'; return; }
+    // 「今天記錄」這裡也可以修改、刪除（2026-10-04：原本只有「每日紀錄」有，民眾找不到）
+    box.innerHTML = '<p class="sub">這天已記錄</p>' + list.map(function (m) {
       return '<div class="meal-row"><span class="meal-tag">' + esc(m.meal) + '</span><span class="meal-text">' + mealTextHtml(m) +
-        photoThumbsHtml(m) + '</span></div>';
+        photoThumbsHtml(m) + '</span>' +
+        '<span class="diary-actions"><button type="button" class="link-btn" data-edit="' + esc(m.id) + '">修改</button>' +
+        '<button type="button" class="link-btn danger-text" data-del="' + esc(m.id) + '">刪除</button></span></div>';
     }).join('');
-    hydratePhotos($('#day-meals'));
+    hydratePhotos(box);
+    bindMealActions(box);
+  }
+
+  function bindMealActions(container) {
+    container.querySelectorAll('[data-edit]').forEach(function (b) { b.onclick = function () { editMeal(b.dataset.edit); }; });
+    container.querySelectorAll('[data-del]').forEach(function (b) { b.onclick = function () { deleteMeal(b.dataset.del); }; });
+  }
+
+  // 修改或刪除飲食後，「今天記錄」和「每日紀錄」兩邊都要更新
+  function refreshMealViews() {
+    if ($('#rec-date') && $('#rec-date').value) renderDayMeals($('#rec-date').value);
+    renderDiary();
   }
 
   // ---------- 照片 ----------
@@ -938,6 +953,21 @@
   function mealSort(a, b) {
     var d = MEAL_ORDER.indexOf(a.meal) - MEAL_ORDER.indexOf(b.meal);
     return d || a.createdAt - b.createdAt;
+  }
+
+  // 一天的飲食怎麼排（2026-10-04 岳志：要看得出點心是在哪兩餐之間吃的）
+  // 早餐、午餐、晚餐固定照順序；點心依「記錄的時間」插在它之前最後記錄的那一餐後面。
+  // 例：早餐→午餐→點心→晚餐這樣記，就照這樣排；事後才補記早餐，早餐還是排第一，不會跑到最後
+  function orderMeals(list) {
+    var out = list.filter(function (m) { return m.meal !== '點心'; }).sort(mealSort);
+    list.filter(function (m) { return m.meal === '點心'; })
+      .sort(function (a, b) { return a.createdAt - b.createdAt; })
+      .forEach(function (s) {
+        var pos = 0;
+        out.forEach(function (m, i) { if (m.createdAt <= s.createdAt) pos = i + 1; });
+        out.splice(pos, 0, s);
+      });
+    return out;
   }
 
   function bindToday() {
@@ -1748,7 +1778,7 @@
         ? '<strong>' + bowels.length + '</strong> 次（' + bowels.map(function (b) { return esc(b.amount) + '・' + esc(b.form); }).join('、') + '）'
         : NOT_RECORDED;
 
-      var meals = byDate[d].sort(mealSort);
+      var meals = orderMeals(byDate[d]);
       var mealHtml = meals.length
         ? '<ul class="diary-list">' + meals.map(function (m) {
           return '<li class="diary-item"><span class="meal-tag">' + esc(m.meal) + '</span>' +
@@ -1769,8 +1799,7 @@
       };
     }
     hydratePhotos($('#diary'));
-    $$('[data-edit]').forEach(function (b) { b.onclick = function () { editMeal(b.dataset.edit); }; });
-    $$('[data-del]').forEach(function (b) { b.onclick = function () { deleteMeal(b.dataset.del); }; });
+    bindMealActions($('#diary'));
   }
 
   async function editMeal(id) {
@@ -1792,7 +1821,7 @@
     if (!ok) return;
     await api.updateMeal(id, { meal: radioValue($('#edit-seg'), 'edit-meal'), text: $('#edit-text').value.trim() });
     st.meals = await api.getMeals();
-    renderDiary();
+    refreshMealViews();
     toast('已修改');
   }
 
@@ -1803,7 +1832,7 @@
     if (!(await ask('確定要刪除「' + m.meal + '：' + (m.text || '照片') + '」' + photoNote + '嗎？', { okText: '刪除', danger: true }))) return;
     await api.deleteMeal(id);
     st.meals = await api.getMeals();
-    renderDiary();
+    refreshMealViews();
     toast('已刪除');
   }
 
@@ -1949,8 +1978,11 @@
 
     $('#export-meals').onclick = function () {
       var rows = [['日期', '餐別', '內容', '照片張數']];
-      st.meals.slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : mealSort(a, b); })
-        .forEach(function (m) { rows.push([m.date, m.meal, m.text, (m.photoIds || []).length]); });
+      var byDate = {};
+      st.meals.forEach(function (m) { (byDate[m.date] = byDate[m.date] || []).push(m); });
+      Object.keys(byDate).sort().forEach(function (d) {
+        orderMeals(byDate[d]).forEach(function (m) { rows.push([m.date, m.meal, m.text, (m.photoIds || []).length]); });
+      });
       download('花蓮共好健康生活_飲食紀錄_' + HH.today() + '.csv', rows);
     };
 
