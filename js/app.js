@@ -1717,12 +1717,12 @@
     function bar(field, values) {
       return '<div class="stat-bar">' + values.map(function (v, i) {
         var n = count(field, v);
-        return n ? '<span class="seg-' + i + '" style="flex:' + n + '">' + v + ' ' + n + '</span>' : '';
+        return n ? '<span class="seg-' + i + '" style="flex:' + n + '">' + v + '<br>' + n + '</span>' : '';
       }).join('') + '</div>';
     }
     return head +
       '<p>' + rangeWord(range) + '共 <strong>' + list.length + ' 次</strong>，平均每天 <strong>' + (list.length / days).toFixed(1) + ' 次</strong></p>' +
-      '<p class="sub stat-label">型態</p>' + bar('form', ['硬', '軟', '未成形']) +
+      '<p class="sub stat-label">型態</p>' + bar('form', ['硬', '軟', '未成形', '拉肚子']) +
       '<p class="sub stat-label">量</p>' + bar('amount', ['多', '中', '少']) +
       '</div>';
   }

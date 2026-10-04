@@ -404,10 +404,11 @@ select:disabled { opacity: 0.55; }
 /* 統計長條（我的變化 → 排便） */
 .stat-label { margin-top: 10px; }
 .stat-bar { display: flex; gap: 3px; margin-top: 4px; border-radius: 8px; overflow: hidden; }
-.stat-bar span { min-width: 54px; padding: 6px 8px; font-size: 0.85rem; font-weight: 600; white-space: nowrap; color: #fff; text-align: center; }
+.stat-bar span { min-width: 52px; padding: 4px; font-size: 0.85rem; font-weight: 600; line-height: 1.25; white-space: nowrap; color: #fff; text-align: center; }
 .stat-bar .seg-0 { background: var(--warn); }
 .stat-bar .seg-1 { background: var(--primary); }
 .stat-bar .seg-2 { background: var(--sea); }
+.stat-bar .seg-3 { background: var(--bad); }
 
 
 /* ---------- 照片 ---------- */

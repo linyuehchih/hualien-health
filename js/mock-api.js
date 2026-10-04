@@ -573,14 +573,14 @@
       return delay(clone(rec));
     },
 
-    // ---- 排便：每次一筆，量（多/中/少）＋型態（硬/軟/未成形）----
+    // ---- 排便：每次一筆，量（多/中/少）＋型態（硬/軟/未成形/拉肚子）----
     getBowel: function () {
       return delay(clone(load().bowel));
     },
 
     addBowel: function (b) {
       if (!inEditWindow(b.date)) return fail('只能新增或修改最近 ' + HH.EDIT_WINDOW_DAYS + ' 天的紀錄');
-      if (['多', '中', '少'].indexOf(b.amount) < 0 || ['硬', '軟', '未成形'].indexOf(b.form) < 0) return fail('請選擇量和型態');
+      if (['多', '中', '少'].indexOf(b.amount) < 0 || ['硬', '軟', '未成形', '拉肚子'].indexOf(b.form) < 0) return fail('請選擇量和型態');
       var s = load();
       var rec = { id: 'b' + Date.now() + Math.floor(Math.random() * 1000), date: b.date, amount: b.amount, form: b.form, createdAt: Date.now() };
       cur(s).bowel.push(rec);
