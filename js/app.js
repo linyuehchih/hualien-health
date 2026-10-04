@@ -1781,10 +1781,9 @@
       var meals = orderMeals(byDate[d]);
       var mealHtml = meals.length
         ? '<ul class="diary-list">' + meals.map(function (m) {
+          // 每日紀錄只看不改（2026-10-04 岳志：當天的紀錄當天改，過幾天也記不清楚了）；修改、刪除在「今天記錄」
           return '<li class="diary-item"><span class="meal-tag">' + esc(m.meal) + '</span>' +
-            '<span class="meal-text">' + mealTextHtml(m) + photoThumbsHtml(m) + '</span>' +
-            '<span class="diary-actions"><button type="button" class="link-btn" data-edit="' + esc(m.id) + '">修改</button>' +
-            '<button type="button" class="link-btn danger-text" data-del="' + esc(m.id) + '">刪除</button></span></li>';
+            '<span class="meal-text">' + mealTextHtml(m) + photoThumbsHtml(m) + '</span></li>';
         }).join('') + '</ul>'
         : NOT_RECORDED;
 
@@ -1799,7 +1798,6 @@
       };
     }
     hydratePhotos($('#diary'));
-    bindMealActions($('#diary'));
   }
 
   async function editMeal(id) {
