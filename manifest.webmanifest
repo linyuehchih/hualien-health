@@ -1,7 +1,7 @@
 {
   "name": "花蓮共好健康生活",
   "short_name": "共好健康",
-  "description": "免費記錄體重、體脂、飲食、喝水和排便，和大家一起更健康",
+  "description": "免費記錄體重、體脂率、飲食、喝水和排便，和大家一起更健康",
   "lang": "zh-Hant-TW",
   "start_url": "./",
   "scope": "./",
