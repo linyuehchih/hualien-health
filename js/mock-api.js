@@ -248,7 +248,7 @@
     }
     var vals = pts.map(function (p) { return p.value; });
     var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
-    if (key !== 'water') out.change = Math.round((vals[vals.length - 1] - vals[0]) * 10) / 10;
+    if (key !== 'water') out.change = Math.round((vals[vals.length - 1] - vals[0]) * 100) / 100;
     if (show) { out.pts = pts; out.current = vals[vals.length - 1]; }
     else out.pts = pts.map(function (p) { return { date: p.date, value: hi > lo ? Math.round((p.value - lo) / (hi - lo) * 1000) / 1000 : 0.5 }; });
     return out;

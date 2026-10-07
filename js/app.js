@@ -28,10 +28,16 @@
     var n = parseFloat(v);
     return isNaN(n) ? null : n;
   }
+  // 數字最多顯示到小數點後 2 位（多的 0 去掉），但至少保留 decimals 位，例如 63.25、63.2、63.0
+  function numText(v, decimals) {
+    var r = Math.round(Number(v) * 100) / 100;
+    var s = String(r), d = s.indexOf('.') < 0 ? 0 : s.length - s.indexOf('.') - 1;
+    return d >= decimals ? s : r.toFixed(decimals);
+  }
   function signed(v, decimals) {
-    var r = Number(Math.abs(v).toFixed(decimals));
+    var r = decimals === 0 ? Math.round(Math.abs(v)) : Math.round(Math.abs(v) * 100) / 100;
     if (r === 0) return '±0';
-    return (v < 0 ? '−' : '+') + r.toFixed(decimals);
+    return (v < 0 ? '−' : '+') + numText(r, decimals);
   }
   function dateLabel(s) {
     var d = HH.parse(s);
@@ -438,7 +444,7 @@
 
   // ---------- 出生年、身高、目標體重：旁邊即時顯示建議體重範圍與提醒 ----------
   var ELDER_TARGET_NOTE = '65 歲以上不建議快速減重。目標請先和醫師或營養師討論；如果現在的體重已在建議範圍內，目標以「維持體重和肌力」為主。';
-  var RANK_NORMAL_NOTE = '你的體重已在建議範圍內：體重這一項不加分也不扣分，分數主要看體脂。建議以維持體重、增加肌力為主，減到過輕反而會扣分。';
+  var RANK_NORMAL_NOTE = '你的體重已在建議範圍內：體重這一項不加分也不扣分，分數主要看體脂率。建議以維持體重、增加肌力為主，減到過輕反而會扣分。';
   var RANK_LOW_NOTE = '你的體重低於建議範圍：繼續減重會扣分，也可能傷害健康；體重往建議範圍增加反而會加分。建議諮詢醫師或營養師。';
 
   // 排行榜上體重這一項的說明（2026-10-03 起只算往健康體重範圍靠近多少）
@@ -1003,7 +1009,7 @@
       }
       var warn = [];
       if (rec.weightKg != null && (rec.weightKg < 20 || rec.weightKg > 300)) warn.push('體重 ' + rec.weightKg + ' 公斤');
-      if (rec.bodyFatPct != null && (rec.bodyFatPct <= 0 || rec.bodyFatPct > 70)) warn.push('體脂 ' + rec.bodyFatPct + '%');
+      if (rec.bodyFatPct != null && (rec.bodyFatPct <= 0 || rec.bodyFatPct > 70)) warn.push('體脂率 ' + rec.bodyFatPct + '%');
       if (rec.muscleKg != null && (rec.muscleKg <= 0 || rec.muscleKg > 150)) warn.push('肌肉量 ' + rec.muscleKg + ' 公斤');
       if (warn.length && !(await ask(warn.join('、') + '，數字好像不太對，確定要儲存嗎？', { okText: '確定儲存', cancelText: '回去修改' }))) return;
       if (bodyOn(date) && !(await ask('這天已經記過了，要更新嗎？', { okText: '更新' }))) return;
@@ -1090,7 +1096,7 @@
   var gs = { list: [], id: null, view: 'board', member: null, range: '30', seq: 0, paneSeq: 0 };
   var GROUP_METRICS = {
     weightKg: { name: '體重', unit: '公斤', decimals: 1 },
-    bodyFatPct: { name: '體脂', unit: '%', decimals: 1 },
+    bodyFatPct: { name: '體脂率', unit: '%', decimals: 1 },
     muscleKg: { name: '肌肉量', unit: '公斤', decimals: 1 },
     visceralFat: { name: '內臟脂肪', unit: '%', decimals: 1 },
     water: { name: '飲水', unit: 'c.c.', decimals: 0 }
@@ -1224,7 +1230,7 @@
       (lb.note ? '<p class="rank-note">' + esc(lb.note) + '</p>' : '') +
       '<p class="hint">只顯示綽號和分數，不會顯示任何人的體重。算法和總排行榜一樣。</p>' +
       (rows ? '<ol class="board">' + rows + '</ol>'
-        : '<p class="hint" style="margin-top:10px">還沒有人上榜。每位成員本季至少記錄兩筆（體重和體脂都要有），而且第一筆到最新一筆相隔 14 天以上，就會出現在這裡。</p>') +
+        : '<p class="hint" style="margin-top:10px">還沒有人上榜。每位成員本季至少記錄兩筆（體重和體脂率都要有），而且第一筆到最新一筆相隔 14 天以上，就會出現在這裡。</p>') +
       (lb.notRanked ? '<p class="hint" style="margin-top:8px">還有 ' + lb.notRanked + ' 位成員還沒上榜</p>' : '') + '</div>';
   }
 
@@ -1260,7 +1266,7 @@
           summary = d.showNumbers ? word + '平均每天 <strong>' + fmtNum(Math.round(avg / 10) * 10) + ' c.c.</strong>' : word + '記錄了 <strong>' + m.n + ' 天</strong>';
         } else {
           summary = word + meta.name + ' <strong>' + signed(m.change, 1) + unit + '</strong>';
-          if (d.showNumbers && m.current != null) summary += '（目前 ' + Number(m.current).toFixed(meta.decimals) + unit + '）';
+          if (d.showNumbers && m.current != null) summary += '（目前 ' + numText(m.current, meta.decimals) + unit + '）';
         }
       }
       var chart = Charts.lineChart(m.pts, {
@@ -1293,7 +1299,7 @@
     }).join('');
 
     box.innerHTML = '<div class="card"><h2>成員</h2>' + rows +
-      '<p class="hint" style="margin-top:10px">「實際數字」指體重、體脂、肌肉量、內臟脂肪、飲水量的數值。沒有公開的話，家人只看得到起伏和變化量。</p></div>' +
+      '<p class="hint" style="margin-top:10px">「實際數字」指體重、體脂率、肌肉量、內臟脂肪、飲水量的數值。沒有公開的話，家人只看得到起伏和變化量。</p></div>' +
       (add ? '<div class="card"><h2>幫長輩加入</h2><p class="hint">你代管的長輩不用邀請碼，由你決定要不要加入。</p>' + add + '</div>' : '');
   }
 
@@ -1422,7 +1428,7 @@
   var SHARE_URL = 'https://linyuehchih.github.io/hualien-health/';
   var SHARE_ITEMS = [
     { key: 'weightKg', name: '體重變化圖', metric: 0 },
-    { key: 'bodyFatPct', name: '體脂變化圖', metric: 1 },
+    { key: 'bodyFatPct', name: '體脂率變化圖', metric: 1 },
     { key: 'muscleKg', name: '肌肉量變化圖', metric: 2 },
     { key: 'visceralFat', name: '內臟脂肪變化圖', metric: 3 },
     { key: 'water', name: '飲水曲線' },
@@ -1476,7 +1482,7 @@
         if (!r || !r.qualified) return;
         sections.push({ type: 'rank', title: r.seasonLabel,
           line1: '第 ' + r.rank + ' 名 · ' + r.score.toFixed(2) + ' 分',
-          line2: '體脂減少 ' + r.fatPct.toFixed(2) + '%｜體重' + weightScoreText(r) });
+          line2: '體脂率減少 ' + r.fatPct.toFixed(2) + '%｜體重' + weightScoreText(r) });
         return;
       }
       var pts = sharePoints(it, from);
@@ -1491,7 +1497,7 @@
       var diff = pts[pts.length - 1].value - pts[0].value;
       var unit = unitText(m.unit);
       var summary = rangeWord(range) + m.name + ' ' + signed(diff, m.decimals) + unit;
-      if (showNumbers) summary += '（目前 ' + pts[pts.length - 1].value.toFixed(m.decimals) + unit + '）';
+      if (showNumbers) summary += '（目前 ' + numText(pts[pts.length - 1].value, m.decimals) + unit + '）';
       sections.push({ type: 'chart', title: m.name, pts: pts, decimals: m.decimals, summary: summary });
     });
     var d = HH.parse(HH.today());
@@ -1634,17 +1640,17 @@
         h.push('<p class="hint">還沒設定目標體重，想設定可以到「我的帳號」填寫</p>');
       } else {
         // 目標可能比現在重（想增重）也可能比較輕；差 0.5 公斤以內算達成
-        var gap = HH.round1(lw.weightKg - p.targetKg);
+        var gap = HH.round2(lw.weightKg - p.targetKg);
         h.push('<p>' + (Math.abs(gap) <= 0.5
           ? '已達成目標體重 ' + p.targetKg + ' 公斤！'
-          : '目標 ' + p.targetKg + ' 公斤，<strong>還要' + (gap > 0 ? '減' : '增加') + ' ' + Math.abs(gap).toFixed(1) + ' 公斤</strong>') + '</p>');
+          : '目標 ' + p.targetKg + ' 公斤，<strong>還要' + (gap > 0 ? '減' : '增加') + ' ' + numText(Math.abs(gap), 1) + ' 公斤</strong>') + '</p>');
       }
     } else {
       h.push('<p class="sub">我的 BMI</p><p>記錄體重後就會顯示 BMI</p>');
       h.push('<p class="bmi-range">建議範圍 ' + HH.BMI_LOW + '～' + HH.BMI_HIGH + '，依你的身高建議體重 ' + range[0].toFixed(1) + '～' + range[1].toFixed(1) + ' 公斤</p>');
     }
     if (lf) {
-      h.push('<p class="fat-line">體脂 ' + lf.bodyFatPct.toFixed(1) + '% ' + tag(HH.fatStatus(p.sex, lf.bodyFatPct)) +
+      h.push('<p class="fat-line">體脂率 ' + numText(lf.bodyFatPct, 1) + '% ' + tag(HH.fatStatus(p.sex, lf.bodyFatPct)) +
         '<span class="hint">' + (p.sex === 'F' ? '女性' : '男性') + ' ' + HH.fatThreshold(p.sex) + '% 以上屬偏高</span></p>');
     }
     if (HH.isElder(p.birthYear)) h.push('<p class="elder-note">' + esc(ELDER_SHORT_NOTE) + '</p>');
@@ -1654,7 +1660,7 @@
 
   var METRICS = [
     { key: 'weightKg', name: '體重', unit: '公斤', decimals: 1 },
-    { key: 'bodyFatPct', name: '體脂', unit: '%', decimals: 1 },
+    { key: 'bodyFatPct', name: '體脂率', unit: '%', decimals: 1 },
     { key: 'muscleKg', name: '肌肉量', unit: '公斤', decimals: 1 },
     { key: 'visceralFat', name: '內臟脂肪', unit: '%', decimals: 1 }
   ];
@@ -1766,7 +1772,7 @@
         var m = m0.key === 'visceralFat' ? Object.assign({}, m0, HH.visceralMeta(recVU(rec))) : m0; // 內臟脂肪用這筆紀錄自己的單位
         var v = rec[m.key];
         return '<span class="body-stat"><span class="sub">' + m.name + '</span>' +
-          (v == null ? '<span class="hint">—</span>' : '<span><strong>' + Number(v).toFixed(m.decimals) + '</strong>' + unitText(m.unit) + '</span>') + '</span>';
+          (v == null ? '<span class="hint">—</span>' : '<span><strong>' + numText(v, m.decimals) + '</strong>' + unitText(m.unit) + '</span>') + '</span>';
       }).join('') + '</div>' : NOT_RECORDED;
 
       var ml = waterOn(d);
@@ -1882,16 +1888,16 @@
     if (r.qualified) {
       me = '<p class="sub">我的成績</p>' +
         '<p class="me-rank">' + inGroup + '第 <strong>' + lb.me.rank + '</strong> 名 · ' + r.score.toFixed(2) + ' 分</p>' +
-        '<p>體脂 ' + r.first.bodyFatPct + '% → ' + r.last.bodyFatPct + '%（減少比例 ' + r.fatPct.toFixed(2) + '%）</p>' +
+        '<p>體脂率 ' + r.first.bodyFatPct + '% → ' + r.last.bodyFatPct + '%（減少比例 ' + r.fatPct.toFixed(2) + '%）</p>' +
         '<p>體重 ' + r.first.weightKg + ' → ' + r.last.weightKg + ' 公斤（' + weightScoreText(r) + '）</p>' +
         '<p class="hint">這一欄只有你自己看得到</p>';
     } else if (r.status === 'none') {
-      me = '<p class="sub">我的成績</p><p>記錄一筆同時有<strong>體重和體脂</strong>的資料，就開始參加這一季的比賽</p>';
+      me = '<p class="sub">我的成績</p><p>記錄一筆同時有<strong>體重和體脂率</strong>的資料，就開始參加這一季的比賽</p>';
     } else if (r.status === 'waiting') {
       me = '<p class="sub">我的成績</p><p>再記錄 <strong>' + r.daysLeft + ' 天</strong>就能上榜</p>' +
         '<p class="hint">第一筆到最新一筆要相隔至少 ' + HH.MIN_SPAN_DAYS + ' 天</p>';
     } else if (r.status === 'ready') {
-      me = '<p class="sub">我的成績</p><p>已經滿 ' + HH.MIN_SPAN_DAYS + ' 天了，<strong>再記一筆體重和體脂</strong>就能上榜</p>';
+      me = '<p class="sub">我的成績</p><p>已經滿 ' + HH.MIN_SPAN_DAYS + ' 天了，<strong>再記一筆體重和體脂率</strong>就能上榜</p>';
     } else {
       me = '<p class="sub">我的成績</p><p>這一季剩下的天數不夠 ' + HH.MIN_SPAN_DAYS + ' 天，下一季再一起加油！</p>';
     }
@@ -1969,7 +1975,7 @@
     };
 
     $('#export-body').onclick = function () {
-      var rows = [['日期', '體重（公斤）', '體脂（%）', '肌肉量（公斤）', '內臟脂肪', '內臟脂肪單位']];
+      var rows = [['日期', '體重（公斤）', '體脂率（%）', '肌肉量（公斤）', '內臟脂肪', '內臟脂肪單位']];
       st.body.forEach(function (r) { rows.push([r.date, r.weightKg, r.bodyFatPct, r.muscleKg, r.visceralFat, r.visceralFat != null ? recVU(r) : '']); });
       download('花蓮共好健康生活_身體數據_' + HH.today() + '.csv', rows);
     };

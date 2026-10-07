@@ -46,7 +46,7 @@
       </div>
 
       <ul class="feature-list">
-        <li>每天記錄體重、體脂、肌肉量、內臟脂肪</li>
+        <li>每天記錄體重、體脂率、肌肉量、內臟脂肪</li>
         <li>寫下三餐吃了什麼，記錄喝水和排便</li>
         <li>看 BMI、變化曲線、離目標還差多少</li>
         <li>用綽號參加每季排行榜</li>
@@ -92,7 +92,7 @@
           <small class="field-note">綽號不能跟別人重複；排行榜會顯示綽號，建議不要用真實全名</small>
         </label>
         <fieldset class="field">
-          <legend>性別（用來判斷體脂是否偏高）</legend>
+          <legend>性別（用來判斷體脂率是否偏高）</legend>
           <div class="seg">
             <label><input type="radio" name="sex" value="M"><span>男</span></label>
             <label><input type="radio" name="sex" value="F"><span>女</span></label>
@@ -168,9 +168,9 @@
             </div>
           </div>
           <div class="grid-2">
-            <label class="field"><span>體重（公斤）</span><input type="number" id="in-weight" inputmode="decimal" step="0.1" placeholder="—"></label>
-            <label class="field"><span>體脂（%）</span><input type="number" id="in-fat" inputmode="decimal" step="0.1" placeholder="—"></label>
-            <label class="field"><span>肌肉量（公斤）</span><input type="number" id="in-muscle" inputmode="decimal" step="0.1" placeholder="—"></label>
+            <label class="field"><span>體重（公斤）</span><input type="number" id="in-weight" inputmode="decimal" step="0.01" placeholder="—"></label>
+            <label class="field"><span>體脂率（%）</span><input type="number" id="in-fat" inputmode="decimal" step="0.01" placeholder="—"></label>
+            <label class="field"><span>肌肉量（公斤）</span><input type="number" id="in-muscle" inputmode="decimal" step="0.01" placeholder="—"></label>
             <div class="field visceral-field">
               <span>內臟脂肪
                 <select id="visceral-unit" class="unit-select" aria-label="內臟脂肪的單位">
@@ -179,7 +179,7 @@
                   <option value="公斤">公斤</option>
                 </select>
               </span>
-              <input type="number" id="in-visceral" inputmode="decimal" step="0.5" placeholder="—">
+              <input type="number" id="in-visceral" inputmode="decimal" step="0.01" placeholder="—">
             </div>
           </div>
           <p class="hint" id="visceral-hint"></p>
@@ -282,7 +282,7 @@
         <div class="card">
           <h2 id="season-label"></h2>
           <p class="rank-note" id="season-note"></p>
-          <p class="formula">分數 ＝ 體脂減少比例 × 0.7 ＋ 體重往健康範圍靠近的比例 × 0.3</p>
+          <p class="formula">分數 ＝ 體脂率減少比例 × 0.7 ＋ 體重往健康範圍靠近的比例 × 0.3</p>
           <p class="hint">健康範圍是 BMI 18.5～24：太重的人減重加分、太輕的人增重加分，已在範圍內的人體重這項不加不扣。健康減重建議每週不超過 0.5–1 公斤</p>
           <p class="elder-note" id="rank-elder" hidden></p>
           <p class="elder-note" id="rank-bmi" hidden></p>
@@ -307,7 +307,7 @@
         <div class="card" id="groups-intro" hidden>
           <h2>家人群組</h2>
           <p>跟家人組成一個群組，互相看到彼此的<strong>趨勢圖</strong>，也能在群組裡比一比誰進步比較多。</p>
-          <p class="hint">・預設只看得到起伏和變化量，看不到實際的體重、體脂，每個人可以自己選擇要不要公開<br>
+          <p class="hint">・預設只看得到起伏和變化量，看不到實際的體重、體脂率，每個人可以自己選擇要不要公開<br>
             ・沒有 LINE 的長輩，由你代管的帳號一起加入<br>
             ・飲食、照片、排便不會分享給群組</p>
         </div>
@@ -472,7 +472,7 @@
         <small class="field-note">綽號不能跟別人重複；排行榜會顯示綽號，建議不要用真實全名</small>
       </label>
       <fieldset class="field">
-        <legend>性別（用來判斷體脂是否偏高）</legend>
+        <legend>性別（用來判斷體脂率是否偏高）</legend>
         <div class="seg">
           <label><input type="radio" name="sex" value="M"><span>男</span></label>
           <label><input type="radio" name="sex" value="F"><span>女</span></label>
@@ -525,7 +525,7 @@
       </div>
       <label class="check">
         <input type="checkbox" id="share-numbers">
-        <span>圖上顯示實際數字（體重、體脂等）</span>
+        <span>圖上顯示實際數字（體重、體脂率等）</span>
       </label>
       <p class="hint share-numbers-hint">預設不顯示，只畫曲線和變化量，收到圖的人看不到你的實際體重。</p>
       <div class="share-preview" id="share-preview">
@@ -565,12 +565,12 @@
   <script src="js/config.js?v=5ed413b3"></script>
   <script src="js/faq.js?v=be6b691c"></script>
   <script src="js/sites.js?v=9af664f8"></script>
-  <script src="js/scoring.js?v=b8a8296c"></script>
+  <script src="js/scoring.js?v=d0491b02"></script>
   <script src="js/photos.js?v=338aa344"></script>
-  <script src="js/mock-api.js?v=7131f975"></script>
+  <script src="js/mock-api.js?v=fb730780"></script>
   <script src="js/api.js?v=20f72d7c"></script>
   <script src="js/charts.js?v=ae593227"></script>
   <script src="js/share.js?v=af373cb2"></script>
-  <script src="js/app.js?v=68c526ad"></script>
+  <script src="js/app.js?v=a62c62b8"></script>
 </body>
 </html>

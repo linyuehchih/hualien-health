@@ -118,7 +118,7 @@
   function fatThreshold(sex) { return sex === 'F' ? 30 : 25; }
   function fatStatus(sex, fat) {
     return fat >= fatThreshold(sex)
-      ? { text: '體脂偏高', level: 'warn' }
+      ? { text: '體脂率偏高', level: 'warn' }
       : { text: '正常範圍', level: 'ok' };
   }
 
@@ -143,8 +143,8 @@
 
   // ---- 內臟脂肪的單位（不同儀器用的單位不同，彼此不能換算）----
   var VISCERAL = {
-    '級': { unit: '級', decimals: 1, step: 0.5, hint: '填體脂計上顯示的級數。各品牌範圍不同：Tanita 1–59、Omron 1–30、InBody 1–20，不能互相比較。' },
-    '%': { unit: '%', decimals: 1, step: 0.1, hint: '體脂計顯示的是百分比，就填這個。' },
+    '級': { unit: '級', decimals: 1, step: 0.01, hint: '填體脂計上顯示的級數。各品牌範圍不同：Tanita 1–59、Omron 1–30、InBody 1–20，不能互相比較。' },
+    '%': { unit: '%', decimals: 1, step: 0.01, hint: '體脂計顯示的是百分比，就填這個。' },
     '公斤': { unit: '公斤', decimals: 2, step: 0.01, hint: '醫療儀器（例如 DEXA）報告上的「內臟脂肪量」，通常零點幾到幾公斤。' }
   };
   var VISCERAL_UNITS = ['級', '%', '公斤'];
